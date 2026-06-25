@@ -71,6 +71,7 @@ const styles = {
     display: 'flex',
     overflow: 'hidden',
     background: '#0a0a0f',
+    position: 'relative' as const,
   },
   paneLabel: {
     color: '#3a3a48',
