@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Toolbar } from './ui/Toolbar'
 import { BottomBar } from './ui/BottomBar'
+import { IntersectionSVG } from './editor/IntersectionSVG'
 import { useRoadGraphStore } from './store/roadGraph'
 import { readGraphFromHash, writeGraphToHash } from './store/url'
 
@@ -23,7 +24,7 @@ export default function App() {
       <Toolbar />
       <div style={styles.workspace}>
         <div style={styles.editorPane}>
-          <span style={styles.paneLabel}>Editor — SVG (Stage 4)</span>
+          <IntersectionSVG />
         </div>
         <div style={styles.divider} />
         <div style={styles.simPane}>
@@ -54,8 +55,7 @@ const styles = {
   editorPane: {
     flex: 1,
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
     background: '#12121a',
   },
   divider: {

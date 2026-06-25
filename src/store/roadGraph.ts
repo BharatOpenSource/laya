@@ -10,7 +10,23 @@ interface RoadGraphStore {
   addArm: (arm: Arm) => void
   removeArm: (armId: Id) => void
   updateLane: (armId: Id, laneId: Id, changes: Partial<Omit<Lane, 'id' | 'index'>>) => void
+  addInboundLane: (armId: Id) => void
+  addOutboundLane: (armId: Id) => void
   setSignalPlan: (plan: SignalPlan | null) => void
+}
+
+// Rebalance lanes to share totalWidth equally, appending one new lane
+function rebalanceWithNewLane(lanes: Lane[], isInbound: boolean): Lane[] {
+  const total = lanes.reduce((s, l) => s + l.width, 0)
+  const newCount = lanes.length + 1
+  const w = total / newCount
+  const newLane: Lane = {
+    id: nanoid(),
+    index: lanes.length,
+    width: w,
+    ...(isInbound ? { allowedMovements: ['straight'] as Lane['allowedMovements'] } : {}),
+  }
+  return [...lanes, newLane].map((l, i) => ({ ...l, index: i, width: w }))
 }
 
 export const useRoadGraphStore = create<RoadGraphStore>((set) => ({
@@ -81,6 +97,36 @@ export const useRoadGraphStore = create<RoadGraphStore>((set) => ({
               outboundLanes: updateLanes(arm.outboundLanes),
             }
           }),
+        },
+      },
+    })),
+
+  addInboundLane: (armId) =>
+    set((state) => ({
+      graph: {
+        ...state.graph,
+        intersection: {
+          ...state.graph.intersection,
+          arms: state.graph.intersection.arms.map((arm) =>
+            arm.id === armId
+              ? { ...arm, inboundLanes: rebalanceWithNewLane(arm.inboundLanes, true) }
+              : arm
+          ),
+        },
+      },
+    })),
+
+  addOutboundLane: (armId) =>
+    set((state) => ({
+      graph: {
+        ...state.graph,
+        intersection: {
+          ...state.graph.intersection,
+          arms: state.graph.intersection.arms.map((arm) =>
+            arm.id === armId
+              ? { ...arm, outboundLanes: rebalanceWithNewLane(arm.outboundLanes, false) }
+              : arm
+          ),
         },
       },
     })),
