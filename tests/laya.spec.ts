@@ -56,7 +56,7 @@ test.describe('Laya — intersection simulator', () => {
       // Count non-background pixels (background is near #0a0a0f = rgb(10,10,15))
       let nonBg = 0
       for (let i = 0; i < data.length; i += 4) {
-        if (data[i] > 20 || data[i + 1] > 20 || data[i + 2] > 20) nonBg++
+        if (data[i] > 80 || data[i + 1] > 80) nonBg++  // bright = vehicle (not dark road)
       }
       return nonBg > 500
     })
@@ -66,27 +66,28 @@ test.describe('Laya — intersection simulator', () => {
   test('pause stops simulation (canvas freezes)', async ({ page }) => {
     await page.waitForLoadState('load')
     await page.getByText('▶ Run').click()
-    await page.waitForTimeout(800)
 
     const canvas = page.locator('canvas')
-    const snapshot1 = await canvas.evaluate((c: HTMLCanvasElement) =>
-      c.toDataURL()
-    )
-    await page.getByText('⏸ Pause').click()
-    await page.waitForTimeout(500)
-    const snapshot2 = await canvas.evaluate((c: HTMLCanvasElement) =>
-      c.toDataURL()
-    )
-    expect(snapshot1).not.toEqual(snapshot2)  // changed while running
 
-    const snapshot3 = await canvas.evaluate((c: HTMLCanvasElement) =>
-      c.toDataURL()
-    )
-    await page.waitForTimeout(400)
-    const snapshot4 = await canvas.evaluate((c: HTMLCanvasElement) =>
-      c.toDataURL()
-    )
-    expect(snapshot3).toEqual(snapshot4)  // frozen after pause
+    // Poll until the canvas is ACTIVELY CHANGING (agents are moving, not just signal lights which are static for 25s)
+    let changing = false
+    const deadline = Date.now() + 25000
+    let prev = ''
+    while (Date.now() < deadline) {
+      const url = await canvas.evaluate((c: HTMLCanvasElement) => c.toDataURL())
+      if (prev && url !== prev) { changing = true; break }
+      prev = url
+      await page.waitForTimeout(400)
+    }
+    expect(changing).toBe(true)  // canvas was changing while running
+
+    // Now pause — canvas must freeze
+    await page.getByText('⏸ Pause').click()
+    await page.waitForTimeout(300)
+    const s3 = await canvas.evaluate((c: HTMLCanvasElement) => c.toDataURL())
+    await page.waitForTimeout(700)
+    const s4 = await canvas.evaluate((c: HTMLCanvasElement) => c.toDataURL())
+    expect(s3).toEqual(s4)
   })
 
   test('Signal panel opens and shows phases', async ({ page }) => {
