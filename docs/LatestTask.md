@@ -2,25 +2,36 @@
 
 > Rolling log. Current session only — 1-2 sessions max. 200-line limit.
 
-## Session: 2026-06-25
+## Session: 2026-06-25 (continued)
 
-**Status:** Stages 1–5 complete. Bezier turns + Home/Reset added. Moving to Stage 6.
+**Status:** Stages 1–6 complete. Signal UX, traffic lights, density/collision noted for next session.
 
 **Completed this session:**
-- [x] Stages 1–5: scaffold, data layer, app shell, SVG editor, simulation engine
-- [x] Chaos fine-tune params: 5 independent behavior axes (speedVariance, signalIgnore, laneIndiscipline, gapAggression, yieldIgnore)
-- [x] Bezier curves for turns — quadratic arc from stop line to stop line (control point = arm direction intersection)
-- [x] Home button (re-center editor view), Reset button (clear all agents)
-- [x] Pedestrians excluded from vehicle lane spawn — lesson recorded
+- [x] Stages 1–6: scaffold → data layer → app shell → SVG editor → simulation engine → agent behaviour
+- [x] Bezier curves for intersection turns (quadratic arc, control point = arm direction intersection)
+- [x] Chaos slider decoupled from fine-tune params — params are independent, "Reset to chaos" button syncs
+- [x] 4-phase signal model (one arm green at a time: N→E→S→W→N)
+- [x] Signal state machine: green → amber (3s) → all-red clearance (1.5s) → next green
+- [x] Traffic lights on arm centreline (rotated to align with arm, unambiguous in any junction shape)
+- [x] Signal countdown timer displayed on canvas
+- [x] Signal Timers panel (editable green duration per phase, amber duration)
+- [x] Signals ON/OFF toggle — releases waiting agents immediately when turned off
+- [x] Legend (collapsible, bottom-right of simulation pane)
+- [x] Home button (re-center SVG editor), Reset button (clear agents without pausing)
+- [x] Following distance: vehicles queue behind slower ones, no passing through on same lane
+- [x] Lane indiscipline / overtaking: blocked agents switch to adjacent lane
 
-**Pending (Stage 6 — agent behaviour):**
-- [ ] Signal compliance (agents stop at red, go at green) — driven by `signalIgnore` param
-- [ ] Following distance / collision avoidance (no overlap) — driven by `gapAggression`
-- [ ] Yield compliance at uncontrolled/yield arms — driven by `yieldIgnore`
+**Known bugs — fix next session:**
+- [ ] **Vehicle jump at red light** — one vehicle jumps right-to-left while waiting at stop line.
+  Likely cause: `tryLaneSwitch()` firing during a brief moment when `waiting` transitions,
+  causing `fromLaneIndex` to change and the agent to teleport laterally one lane width.
+  Fix: gate lane switch on `agent.blockedTime > 0` only when the agent has been moving
+  slowly (not when at zero speed at stop line).
+- [ ] Vehicles overlap at intersection center (crossing-phase 2D collision not implemented)
 
-**Noted for future stages:**
-- [ ] Agents move on top of each other — following distance deferred to Stage 6
-- [ ] Agent count slider (overall spawn rate multiplier) — Stage 7/8 area
-- [ ] Per-vehicle-type count sliders (individual type spawn weights) — Stage 8
-- [ ] Pedestrian crossing paths (perpendicular to arm, not along lane) — Stage 8
-- [ ] U-turn Bezier path (tight arc, currently straight line) — Stage 6+
+**Pending for Stage 7/8:**
+- [ ] Traffic density slider (overall spawn rate multiplier)
+- [ ] Per-vehicle-type density sliders (individual spawn weight controls)
+- [ ] Pedestrian crossing paths (perpendicular crossing, not along lane)
+- [ ] U-turn Bezier path (tight arc — currently straight line)
+- [ ] Diagnosis layer (Stage 10): throughput, queue length, bottleneck highlighting
