@@ -17,82 +17,87 @@ interface SignalData {
   timeRemaining: number
 }
 
-// Screen position of the signal indicator for an arm (outside road right edge at stop line)
-function signalIndicatorPos(arm: RoadGraph['intersection']['arms'][0], cx: number, cy: number): { sx: number; sy: number } {
-  const rad = arm.angle * Math.PI / 180
+// Signal indicators are placed in screen coordinates (never inside ctx.rotate).
+// Position: 14m along the arm from center (driver sees light before reaching stop line),
+// then 45px outside the far edge of the inbound lane group.
+// This guarantees the entire light box + label is well clear of the road surface.
+const SIGNAL_ALONG_M  = 14   // metres from center along the arm
+const SIGNAL_PERP_PX  = 50   // pixels outside the inbound road edge
+
+type ArmType = RoadGraph['intersection']['arms'][0]
+
+function signalIndicatorPos(arm: ArmType, cx: number, cy: number): { sx: number; sy: number } {
+  const rad     = arm.angle * Math.PI / 180
   const totalIn = arm.inboundLanes.reduce((s, l) => s + l.width, 0) * SCALE
-  const stopOffset = arm.stopLineOffset * SCALE
+  const along   = SIGNAL_ALONG_M * SCALE
 
-  // Stop line base in screen coords
-  const baseSX = cx + stopOffset * Math.sin(rad)
-  const baseSY = cy - stopOffset * Math.cos(rad)
+  // Base point along the arm from center (in screen coords)
+  const baseSX = cx + along * Math.sin(rad)
+  const baseSY = cy - along * Math.cos(rad)
 
-  // Right-perp direction in screen (inbound side)
-  const rpSX = Math.cos(rad)
-  const rpSY = Math.sin(rad)
-
-  // Position just outside the right edge of inbound lanes
+  // Right-perpendicular in screen space = (cos θ, sin θ)  [inbound side in LHT]
   return {
-    sx: baseSX + rpSX * (totalIn + 12),
-    sy: baseSY + rpSY * (totalIn + 12),
+    sx: baseSX + Math.cos(rad) * (totalIn + SIGNAL_PERP_PX),
+    sy: baseSY + Math.sin(rad) * (totalIn + SIGNAL_PERP_PX),
   }
 }
 
-// Draw a traffic light (3 circles: red top, amber mid, green bottom) at (sx, sy) in screen space
 function drawTrafficLight(
   ctx: CanvasRenderingContext2D,
   sx: number,
   sy: number,
-  arm: RoadGraph['intersection']['arms'][0],
+  arm: ArmType,
   signalData: SignalData,
 ) {
-  const isGreen  = signalData.stage === 'green'  && signalData.greenArmIds.includes(arm.id)
-  const isAmber  = signalData.stage === 'amber'  && signalData.greenArmIds.includes(arm.id)
-  // allred or another arm's green → this arm is red
-  const isRed    = !isGreen && !isAmber
+  const isGreen = signalData.stage === 'green' && signalData.greenArmIds.includes(arm.id)
+  const isAmber = signalData.stage === 'amber' && signalData.greenArmIds.includes(arm.id)
+  const isRed   = !isGreen && !isAmber
 
-  const boxW = 12
-  const boxH = 34
-  const r    = 4    // circle radius
-  const gap  = 11   // between circle centres
+  const boxW = 16
+  const boxH = 44
+  const r    = 5     // circle radius
+  const gap  = 14    // between circle centres
 
-  // Background box
-  ctx.fillStyle = '#111118'
-  ctx.strokeStyle = '#333345'
-  ctx.lineWidth = 1
+  // Housing
+  ctx.fillStyle = '#0e0e18'
+  ctx.strokeStyle = '#2a2a40'
+  ctx.lineWidth = 1.5
   ctx.beginPath()
-  ctx.roundRect(sx - boxW / 2, sy - boxH / 2, boxW, boxH, 3)
+  ctx.roundRect(sx - boxW / 2, sy - boxH / 2, boxW, boxH, 4)
   ctx.fill()
   ctx.stroke()
 
-  // Red circle (top)
-  const ry = sy - gap
-  ctx.fillStyle = isRed ? '#ef4444' : '#2a0a0a'
-  if (isRed) { ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 8 }
-  ctx.beginPath(); ctx.arc(sx, ry, r, 0, Math.PI * 2); ctx.fill()
+  // Red (top)
+  ctx.fillStyle = isRed ? '#ff3030' : '#250505'
+  if (isRed) { ctx.shadowColor = '#ff3030'; ctx.shadowBlur = 12 }
+  ctx.beginPath(); ctx.arc(sx, sy - gap, r, 0, Math.PI * 2); ctx.fill()
   ctx.shadowBlur = 0
 
-  // Amber circle (middle)
-  const ay = sy
-  ctx.fillStyle = isAmber ? '#f59e0b' : '#1a1200'
-  if (isAmber) { ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 8 }
-  ctx.beginPath(); ctx.arc(sx, ay, r, 0, Math.PI * 2); ctx.fill()
+  // Amber (middle)
+  ctx.fillStyle = isAmber ? '#ffaa00' : '#1a1000'
+  if (isAmber) { ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 12 }
+  ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill()
   ctx.shadowBlur = 0
 
-  // Green circle (bottom)
-  const gy = sy + gap
-  ctx.fillStyle = isGreen ? '#22c55e' : '#001a08'
-  if (isGreen) { ctx.shadowColor = '#22c55e'; ctx.shadowBlur = 10 }
-  ctx.beginPath(); ctx.arc(sx, gy, r, 0, Math.PI * 2); ctx.fill()
+  // Green (bottom)
+  ctx.fillStyle = isGreen ? '#00e050' : '#001505'
+  if (isGreen) { ctx.shadowColor = '#00e050'; ctx.shadowBlur = 14 }
+  ctx.beginPath(); ctx.arc(sx, sy + gap, r, 0, Math.PI * 2); ctx.fill()
   ctx.shadowBlur = 0
 
-  // Countdown — show seconds remaining, colored to current state
-  const timerColor = isGreen ? '#22c55e' : isAmber ? '#f59e0b' : '#ef4444'
+  // Countdown timer (below box)
+  const timerColor = isGreen ? '#00e050' : isAmber ? '#ffaa00' : '#ff3030'
+  const secs = Math.ceil(signalData.timeRemaining)
   ctx.fillStyle = timerColor
-  ctx.font = 'bold 8px monospace'
+  ctx.font = 'bold 9px monospace'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
-  ctx.fillText(Math.ceil(signalData.timeRemaining).toString(), sx, sy + boxH / 2 + 2)
+  ctx.fillText(String(secs), sx, sy + boxH / 2 + 3)
+
+  // Arm label (below countdown) — so you always know which side this light controls
+  ctx.fillStyle = '#555577'
+  ctx.font = '8px sans-serif'
+  ctx.fillText(arm.label, sx, sy + boxH / 2 + 15)
   ctx.textBaseline = 'alphabetic'
 }
 
