@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { PRESETS, type PresetKey } from '../graph/presets'
 import { useRoadGraphStore, makeDefaultArm } from '../store/roadGraph'
 import { writeGraphToHash } from '../store/url'
+import { SignalPanel } from './SignalPanel'
 
 function findFreeAngle(existingAngles: number[]): number {
   if (existingAngles.length === 0) return 0
@@ -18,6 +20,7 @@ function findFreeAngle(existingAngles: number[]): number {
 
 export function Toolbar() {
   const { graph, setGraph, addArm } = useRoadGraphStore()
+  const [showSignal, setShowSignal] = useState(false)
   const armCount = graph.intersection.arms.length
   const canAddArm = armCount < 6
 
@@ -25,12 +28,12 @@ export function Toolbar() {
     const key = e.target.value as PresetKey
     if (key in PRESETS) setGraph(PRESETS[key].factory())
     e.target.value = ''
+    setShowSignal(false)
   }
 
   function handleAddArm() {
     const existingAngles = graph.intersection.arms.map(a => a.angle)
-    const angle = findFreeAngle(existingAngles)
-    addArm(makeDefaultArm(angle, `Arm ${armCount + 1}`))
+    addArm(makeDefaultArm(findFreeAngle(existingAngles), `Arm ${armCount + 1}`))
   }
 
   function handleShare() {
@@ -50,12 +53,20 @@ export function Toolbar() {
           ))}
         </select>
         <button style={styles.btn} disabled={!canAddArm} onClick={handleAddArm}>+ Arm</button>
-        <button style={styles.btn} disabled title="Coming in Stage 9">Signal</button>
+
+        {/* Signal button — opens timer panel */}
+        <div style={{ position: 'relative' }}>
+          <button
+            style={{ ...styles.btn, ...(showSignal ? styles.btnActive : {}) }}
+            onClick={() => setShowSignal(v => !v)}
+          >
+            🚦 Signal
+          </button>
+          {showSignal && <SignalPanel onClose={() => setShowSignal(false)} />}
+        </div>
       </div>
       <div style={styles.right}>
-        <button style={{ ...styles.btn, ...styles.shareBtn }} onClick={handleShare}>
-          Share
-        </button>
+        <button style={{ ...styles.btn, ...styles.shareBtn }} onClick={handleShare}>Share</button>
       </div>
     </div>
   )
@@ -71,17 +82,11 @@ const styles = {
     background: '#1a1a1f',
     borderBottom: '1px solid #2a2a35',
     flexShrink: 0,
+    position: 'relative' as const,
+    zIndex: 50,
   },
-  left: {
-    display: 'flex',
-    gap: 8,
-    alignItems: 'center',
-  },
-  right: {
-    display: 'flex',
-    gap: 8,
-    alignItems: 'center',
-  },
+  left: { display: 'flex', gap: 8, alignItems: 'center' },
+  right: { display: 'flex', gap: 8, alignItems: 'center' },
   btn: {
     padding: '5px 12px',
     background: '#2a2a35',
@@ -90,6 +95,11 @@ const styles = {
     borderRadius: 4,
     cursor: 'pointer',
     fontSize: 13,
+  } as React.CSSProperties,
+  btnActive: {
+    background: '#3a3a50',
+    borderColor: '#7c6fcd',
+    color: '#c8c0ff',
   } as React.CSSProperties,
   shareBtn: {
     background: '#f59e0b',
