@@ -12,7 +12,9 @@ export const VEHICLE_CONFIGS: Record<VehicleType, VehicleConfig> = {
   'car':         { width: 2.0, length: 4.5, baseSpeed: 8,   color: '#c0c0c0', spawnWeight: 30 },
   'two-wheeler': { width: 0.8, length: 2.0, baseSpeed: 7,   color: '#f59e0b', spawnWeight: 50 },
   'auto':        { width: 1.5, length: 3.2, baseSpeed: 6,   color: '#4ade80', spawnWeight: 15 },
-  'pedestrian':  { width: 0.5, length: 0.5, baseSpeed: 1.2, color: '#60a5fa', spawnWeight: 5  },
+  // Pedestrians excluded from lane spawn (spawnWeight: 0) until Stage 8 implements
+  // perpendicular crossing paths. Pedestrians don't travel along vehicle lanes.
+  'pedestrian':  { width: 0.5, length: 0.5, baseSpeed: 1.2, color: '#60a5fa', spawnWeight: 0  },
 }
 
 const TOTAL_WEIGHT = Object.values(VEHICLE_CONFIGS).reduce((s, c) => s + c.spawnWeight, 0)
