@@ -3,11 +3,23 @@ import { useRoadGraphStore } from '../store/roadGraph'
 import { ArmShape } from './ArmShape'
 import { CenterBox } from './CenterBox'
 import { SelectionPanel, type Selection } from './SelectionPanel'
+import { SCALE } from './geometry'
 
-const DEFAULT_VB = { x: -400, y: -400, w: 800, h: 800 }
+// Tighter default viewBox — arm is 60m, scale 5 = 300px; viewBox 500 leaves ~100px margin per side
+const DEFAULT_VB = { x: -250, y: -250, w: 500, h: 500 }
 const ZOOM_FACTOR = 1.15
-const MIN_ZOOM_W = 200
+const MIN_ZOOM_W = 100
 const MAX_ZOOM_W = 2400
+
+// Arm label position in absolute SVG coords (not inside any rotating group)
+function labelPos(angleDeg: number, lengthM: number) {
+  const rad = (angleDeg * Math.PI) / 180
+  const dist = lengthM * SCALE + 16
+  return {
+    x: dist * Math.sin(rad),
+    y: -dist * Math.cos(rad),
+  }
+}
 
 export function IntersectionSVG() {
   const graph = useRoadGraphStore(s => s.graph)
@@ -17,7 +29,6 @@ export function IntersectionSVG() {
   const dragged = useRef(false)
   const svgRef = useRef<SVGSVGElement>(null)
 
-  // Convert mouse event position to SVG coordinates
   function svgCoords(e: React.MouseEvent) {
     const rect = svgRef.current!.getBoundingClientRect()
     const ratioX = (e.clientX - rect.left) / rect.width
@@ -80,10 +91,8 @@ export function IntersectionSVG() {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       >
-        {/* Center box drawn first (behind arms) */}
         <CenterBox arms={graph.intersection.arms} />
 
-        {/* Arms */}
         {graph.intersection.arms.map(arm => (
           <ArmShape
             key={arm.id}
@@ -98,6 +107,24 @@ export function IntersectionSVG() {
             onSelectLane={laneId => setSelection({ type: 'lane', armId: arm.id, laneId })}
           />
         ))}
+
+        {/* Labels rendered outside rotating groups so they always read upright */}
+        {graph.intersection.arms.map(arm => {
+          const { x, y } = labelPos(arm.angle, arm.length)
+          return (
+            <text
+              key={`label-${arm.id}`}
+              x={x} y={y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#666"
+              fontSize={11}
+              style={{ userSelect: 'none', pointerEvents: 'none' }}
+            >
+              {arm.label}
+            </text>
+          )
+        })}
       </svg>
 
       <SelectionPanel selection={selection} onDeselect={() => setSelection(null)} />
