@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useSimStore, PARAM_LABELS, type ChaosParams } from '../store/sim'
 
 export function BottomBar() {
-  const { chaos, params, running, setChaos, setParam, setRunning } = useSimStore()
+  const { chaos, params, running, setChaos, setParam, setRunning, triggerReset } = useSimStore()
   const [expanded, setExpanded] = useState(false)
 
   // Check if any param diverges from the chaos preset
@@ -52,6 +52,9 @@ export function BottomBar() {
           </button>
         </div>
         <div style={styles.controls}>
+          <button style={{ ...styles.btn, ...styles.resetBtn }} onClick={triggerReset} title="Clear all agents">
+            ↺
+          </button>
           {running ? (
             <button style={{ ...styles.btn, ...styles.pauseBtn }} onClick={() => setRunning(false)}>
               ⏸ Pause
@@ -155,6 +158,12 @@ const styles = {
     cursor: 'pointer',
     fontWeight: 600,
   } as React.CSSProperties,
+  resetBtn: {
+    background: '#2a2a35',
+    color: '#888',
+    fontSize: 16,
+    padding: '4px 10px',
+  },
   runBtn: {
     background: '#22c55e',
     color: '#0f0f11',

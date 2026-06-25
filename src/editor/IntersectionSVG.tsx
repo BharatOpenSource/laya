@@ -80,6 +80,9 @@ export function IntersectionSVG() {
 
   return (
     <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      <div style={navStyle}>
+        <button style={navBtn} title="Re-center view (Home)" onClick={() => setVb(DEFAULT_VB)}>⌂</button>
+      </div>
       <svg
         ref={svgRef}
         width="100%"
@@ -130,4 +133,29 @@ export function IntersectionSVG() {
       <SelectionPanel selection={selection} onDeselect={() => setSelection(null)} />
     </div>
   )
+}
+
+const navStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: 10,
+  left: 10,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  zIndex: 5,
+}
+
+const navBtn: React.CSSProperties = {
+  width: 30,
+  height: 30,
+  background: '#1e1e2a',
+  border: '1px solid #2a2a40',
+  borderRadius: 4,
+  color: '#888',
+  fontSize: 16,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  lineHeight: 1,
 }
