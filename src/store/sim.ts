@@ -23,7 +23,7 @@ export const TYPE_LABELS: Record<VehicleType, string> = {
   car: 'Cars',
   'two-wheeler': 'Two-wheelers',
   auto: 'Autos',
-  pedestrian: 'Pedestrians (Stage 8)',
+  pedestrian: 'Pedestrians',
 }
 
 export function chaosPreset(chaos: number): ChaosParams {

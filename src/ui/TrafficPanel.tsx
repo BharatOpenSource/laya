@@ -3,7 +3,7 @@ import { useSimStore, TYPE_LABELS } from '../store/sim'
 import { VEHICLE_CONFIGS } from '../simulation/vehicleTypes'
 import type { VehicleType } from '../types/graph'
 
-const ACTIVE_TYPES: VehicleType[] = ['two-wheeler', 'car', 'auto']
+const ACTIVE_TYPES: VehicleType[] = ['two-wheeler', 'car', 'auto', 'pedestrian']
 
 export function TrafficPanel() {
   const { spawnConfig, setGlobalMultiplier, setTypeWeight } = useSimStore()

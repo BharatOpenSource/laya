@@ -37,7 +37,7 @@ export function SimCanvas() {
     if (!worker) return
     if (running) {
       if (!initializedRef.current) {
-        worker.postMessage({ type: 'init', graph, params })
+        worker.postMessage({ type: 'init', graph, params, spawnConfig })
         initializedRef.current = true
       } else {
         worker.postMessage({ type: 'resume' })

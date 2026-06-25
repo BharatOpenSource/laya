@@ -136,6 +136,14 @@ export function buildCrossingPath(
   const p0 = inboundStopPos(fromArm, fromLaneIndex)
   const p2 = outboundStopPos(toArm, toLaneIndex)
 
+  // U-turn: same arm — d0 and outDir are exactly opposite so det=0 and controlPoint fails.
+  // Use the intersection center {0,0} as the control point: the arc swings through the
+  // center and back, which is the correct shape for a tight U-turn.
+  if (fromArm.id === toArm.id) {
+    const p1 = { x: 0, y: 0 }
+    return { p0, p1, p2, arcLength: approxArcLength(p0, p1, p2) }
+  }
+
   // d0 = inbound travel direction (toward center)
   const d0: Point = { x: -Math.sin(rad(fromArm.angle)), y: -Math.cos(rad(fromArm.angle)) }
   // outDir = outbound travel direction (away from center)
@@ -143,6 +151,21 @@ export function buildCrossingPath(
 
   const p1 = controlPoint(p0, d0, p2, outDir)
   return { p0, p1, p2, arcLength: approxArcLength(p0, p1, p2) }
+}
+
+// Pedestrian crossing path: straight line perpendicular to the arm at the stop line.
+// Crosses from the right edge of the road to the left edge (across all lanes).
+export function buildPedestrianCrossingPath(arm: Arm): CrossingPath {
+  const d  = armDirWorld(arm)
+  const rp = rightPerpWorld(arm)
+  const totalWidth =
+    arm.inboundLanes.reduce((s, l) => s + l.width, 0) +
+    arm.outboundLanes.reduce((s, l) => s + l.width, 0)
+  const halfW = totalWidth / 2
+  const base  = { x: d.x * arm.stopLineOffset, y: d.y * arm.stopLineOffset }
+  const p0 = { x: base.x + rp.x * halfW, y: base.y + rp.y * halfW }
+  const p2 = { x: base.x - rp.x * halfW, y: base.y - rp.y * halfW }
+  return { p0, p1: null, p2, arcLength: totalWidth }
 }
 
 // Position on crossing path at progress t ∈ [0,1]

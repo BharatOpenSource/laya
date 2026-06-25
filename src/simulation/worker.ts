@@ -7,7 +7,7 @@ import { DEFAULT_SPAWN_CONFIG } from '../store/sim'
 import {
   inboundEntryPos, inboundStopPos,
   outboundStopPos, outboundExitPos,
-  lerp, buildCrossingPath, crossingPos, crossingHeading,
+  lerp, buildCrossingPath, buildPedestrianCrossingPath, crossingPos, crossingHeading,
   type CrossingPath,
 } from './geometry'
 import { sampleSpeed, VEHICLE_CONFIGS } from './vehicleTypes'
@@ -353,8 +353,11 @@ function advanceAgents(dt: number) {
     while (agent.progress >= 1 && agent.phase !== 'done') {
       agent.progress -= 1
       if (agent.phase === 'approaching') { agent.phase = 'crossing'; agent.waiting = false }
-      else if (agent.phase === 'crossing')  agent.phase = 'exiting'
-      else if (agent.phase === 'exiting')   agent.phase = 'done'
+      else if (agent.phase === 'crossing') {
+        // Pedestrians have no exiting phase — they finish when they cross the road.
+        agent.phase = agent.type === 'pedestrian' ? 'done' : 'exiting'
+      }
+      else if (agent.phase === 'exiting') agent.phase = 'done'
     }
   }
 }
@@ -409,8 +412,33 @@ function sampleType(): VehicleType {
   return 'car'
 }
 
+// Pedestrians cross the arm perpendicularly at the stop line — no lane routing.
+function trySpawnPedestrian(arm: Arm) {
+  // Don't spawn if another pedestrian from this arm is just starting — avoids pile-up at t=0.
+  for (const agent of agents.values()) {
+    if (agent.type === 'pedestrian' && agent.fromArmId === arm.id && agent.progress < 0.1) return
+  }
+  const spd = sampleSpeed('pedestrian', params.speedVariance)
+  const id = nanoid()
+  agents.set(id, {
+    id, type: 'pedestrian', phase: 'crossing',
+    fromArmId: arm.id, fromLaneIndex: 0,
+    toArmId: arm.id, toLaneIndex: 0,
+    progress: 0, speed: spd, targetSpeed: spd,
+    waiting: false, yieldTimer: 0, blockedTime: 0,
+  })
+  crossingPaths.set(id, buildPedestrianCrossingPath(arm))
+}
+
 function trySpawn(arm: Arm, laneIndex: number) {
   if (!graph) return
+  const type = sampleType()
+
+  if (type === 'pedestrian') {
+    trySpawnPedestrian(arm)
+    return
+  }
+
   const lane = arm.inboundLanes[laneIndex]
   if (!lane) return
   const laneConns = connections.filter(c => c.fromArmId === arm.id && c.fromLaneId === lane.id)
@@ -418,7 +446,6 @@ function trySpawn(arm: Arm, laneIndex: number) {
   const conn = laneConns[Math.floor(Math.random() * laneConns.length)]
   const toArm = graph.intersection.arms.find(a => a.id === conn.toArmId)
   if (!toArm?.outboundLanes.length) return
-  const type = sampleType()
   const spd = sampleSpeed(type, params.speedVariance)
   const id = nanoid()
   agents.set(id, {
@@ -453,6 +480,7 @@ self.onmessage = (e: MessageEvent) => {
   switch (msg.type) {
     case 'init':
       graph = msg.graph; params = msg.params
+      if (msg.spawnConfig) spawnConfig = msg.spawnConfig
       connections = deriveConnections(graph!)
       agents.clear(); crossingPaths.clear()
       initSpawnTimers(); initSignal()

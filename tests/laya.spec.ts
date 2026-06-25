@@ -159,4 +159,42 @@ test.describe('Laya — intersection simulator', () => {
     expect(url).toMatch(/#.{20,}/)  // URL has a non-trivial hash = encoded graph
   })
 
+  test('pedestrian slider is visible and pedestrians spawn on canvas', async ({ page }) => {
+    await page.waitForLoadState('load')
+
+    // Open traffic panel — pedestrian row should now be visible (label no longer has "(Stage 8)")
+    await page.getByTitle('Traffic density controls').click()
+    await expect(page.getByText('Pedestrians')).toBeVisible()
+
+    // Set pedestrian weight to 100, zero out vehicles, global density to max.
+    // Do this BEFORE clicking Run so the init message carries the correct spawnConfig.
+    const sliders = page.locator('input[type="range"]')
+    // Sliders: index 0=chaos, 1=global density, 2=two-wheeler, 3=car, 4=auto, 5=pedestrian
+    await sliders.nth(1).fill('3')   // global density → max
+    await sliders.nth(2).fill('0')   // two-wheeler → 0
+    await sliders.nth(3).fill('0')   // car → 0
+    await sliders.nth(4).fill('0')   // auto → 0
+    await sliders.nth(5).fill('100') // pedestrian → 100
+
+    await page.getByText('▶ Run').click()
+    // Default spawn rate = 200 veh/hr, 2 lanes, 3× multiplier → 12s interval per lane.
+    // Wait 15s to guarantee all 8 lane-timers have fired at least once.
+    await page.waitForTimeout(15000)
+
+    // Pedestrian colour is #60a5fa = rgb(96, 165, 250) — distinctly blue
+    const canvas = page.locator('canvas')
+    const hasPedestrians = await canvas.evaluate((c: HTMLCanvasElement) => {
+      const ctx = c.getContext('2d')!
+      const data = ctx.getImageData(0, 0, c.width, c.height).data
+      let pedestrianPixels = 0
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2]
+        // Blue > 200, red < 150, green > 100 — matches pedestrian #60a5fa, not road or other vehicles
+        if (b > 200 && r < 150 && g > 100) pedestrianPixels++
+      }
+      return pedestrianPixels > 2
+    })
+    expect(hasPedestrians).toBe(true)
+  })
+
 })

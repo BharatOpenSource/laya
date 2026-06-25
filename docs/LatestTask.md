@@ -2,36 +2,28 @@
 
 > Rolling log. Current session only — 1-2 sessions max. 200-line limit.
 
-## Session: 2026-06-25 (continued)
+## Session: 2026-06-25 (Stage 8)
 
-**Status:** Stages 1–6 complete. Signal UX, traffic lights, density/collision noted for next session.
+**Status:** Stages 1–7 complete. Repo live at github.com/BharatOpenSource/laya. Starting Stage 8.
 
-**Completed this session:**
-- [x] Stages 1–6: scaffold → data layer → app shell → SVG editor → simulation engine → agent behaviour
-- [x] Bezier curves for intersection turns (quadratic arc, control point = arm direction intersection)
-- [x] Chaos slider decoupled from fine-tune params — params are independent, "Reset to chaos" button syncs
-- [x] 4-phase signal model (one arm green at a time: N→E→S→W→N)
-- [x] Signal state machine: green → amber (3s) → all-red clearance (1.5s) → next green
-- [x] Traffic lights on arm centreline (rotated to align with arm, unambiguous in any junction shape)
-- [x] Signal countdown timer displayed on canvas
-- [x] Signal Timers panel (editable green duration per phase, amber duration)
-- [x] Signals ON/OFF toggle — releases waiting agents immediately when turned off
-- [x] Legend (collapsible, bottom-right of simulation pane)
-- [x] Home button (re-center SVG editor), Reset button (clear agents without pausing)
-- [x] Following distance: vehicles queue behind slower ones, no passing through on same lane
-- [x] Lane indiscipline / overtaking: blocked agents switch to adjacent lane
+**Completed (Stages 1–7):**
+- [x] Scaffold, data layer, app shell, SVG editor, simulation engine, agent behaviour (Stages 1–6)
+- [x] Bezier curves for intersection turns (quadratic arc)
+- [x] Chaos slider + independent fine-tune params (5 axes)
+- [x] 4-phase signal model, amber/all-red clearance, countdown timer
+- [x] Traffic lights on arm centreline, Signal Timers panel, Signals ON/OFF
+- [x] Following distance, lane indiscipline/overtaking
+- [x] Vehicle jump at red light — fixed (lane switch gated on not-waiting)
+- [x] Crossing-phase 2D collision — pairwise proximity check (PR #18)
+- [x] Crossing gridlock — fixed (PR #19)
+- [x] Traffic density: global multiplier + per-type weight sliders (Stage 7)
+- [x] Playwright E2E suite — 10/10 passing (Stage 7)
 
-**Known bugs — fix next session:**
-- [ ] **Vehicle jump at red light** — one vehicle jumps right-to-left while waiting at stop line.
-  Likely cause: `tryLaneSwitch()` firing during a brief moment when `waiting` transitions,
-  causing `fromLaneIndex` to change and the agent to teleport laterally one lane width.
-  Fix: gate lane switch on `agent.blockedTime > 0` only when the agent has been moving
-  slowly (not when at zero speed at stop line).
-- [ ] Vehicles overlap at intersection center (crossing-phase 2D collision not implemented)
+**Stage 8 — complete:**
+- [x] U-turn Bezier path: same-arm case now uses {0,0} as control point → proper arc through center
+- [x] Pedestrian crossing paths: perpendicular model, spawn from road edge, no lane routing
+- [x] SimCanvas bug fixed: spawnConfig now sent in init message (was lost if set before clicking Run)
+- [x] Playwright E2E: 11/11 passing (pedestrian spawn + pixel verification test added)
 
-**Pending for Stage 7/8:**
-- [ ] Traffic density slider (overall spawn rate multiplier)
-- [ ] Per-vehicle-type density sliders (individual spawn weight controls)
-- [ ] Pedestrian crossing paths (perpendicular crossing, not along lane)
-- [ ] U-turn Bezier path (tight arc — currently straight line)
+**Pending (future stages):**
 - [ ] Diagnosis layer (Stage 10): throughput, queue length, bottleneck highlighting
