@@ -76,6 +76,29 @@ Near zero until Phase 2 community backend. Static hosting on Cloudflare Pages is
 - **Stop line:** explicit `stopLineOffset` per arm (metres from center). Default 5.0m.
 - **Spawn rate:** separate `spawnRate` field on `Arm` (vehicles per hour). Independent of arm length.
 
+## Agent behavior model — locked 2026-06-25
+
+**Speed and behavior are chaos-distributed, not fixed per vehicle type.**
+
+Indian traffic has every kind of behavior simultaneously — slow where it shouldn't be, fast where it shouldn't be, rash, signal-jumping, tailgating so tight no one can merge, and also calm disciplined driving. None of these are the exception. The chaos slider shapes the *distribution* of behaviors, not just a binary rule-compliance switch.
+
+**Model:**
+- Each agent samples its own `targetSpeed` at spawn from a distribution centered on a per-type base speed, with spread that scales with chaos
+- At chaos 0: agents cluster tightly around the base speed (calm, predictable)
+- At chaos 50: speed distribution widens — some agents slow, some fast, some rash
+- At chaos 100: distribution is nearly flat across the full range (anything goes)
+- Formula: `targetSpeed = base * clamp(Normal(1.0, σ(chaos)), 0.2, 2.5)` where `σ` scales from ~0.05 at chaos 0 to ~0.6 at chaos 100
+- Following distance, gap acceptance, and signal compliance also chaos-distributed (Stage 6)
+- The *type* of vehicle constrains the base (a pedestrian's base is ~1.2 m/s, a car's is ~8 m/s) but chaos can make any agent slow or fast relative to their own type
+
+**Base speeds (calm reference, m/s):**
+- car: 8 (≈29 km/h — realistic for chaotic urban intersection approach)
+- two-wheeler: 7 (≈25 km/h)
+- auto: 6 (≈22 km/h)
+- pedestrian: 1.2 (≈4 km/h)
+
+These are not limits — they are the center of the distribution. At chaos 100, a car might do 20 m/s (72 km/h) through an intersection.
+
 ## Open Questions
 
 - [x] **Project name** — **Laya (लय)** locked 2026-06-25

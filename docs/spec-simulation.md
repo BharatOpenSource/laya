@@ -193,8 +193,32 @@ Vehicle colours and sizes (in metres):
 
 Default spawn mix: 50% two-wheeler, 30% car, 15% auto, 5% pedestrian.
 
-## Open questions
+## Speed model (chaos-distributed)
 
-- [ ] Stage 5 only: all agents move at free-flow speed (no stopping). Signals and following distance in Stage 6.
-- [ ] Crossing path in Stage 5: straight line from stop line to stop line. Arc paths deferred.
-- [ ] What is the free-flow speed per type? (m/s) — defaults: car 10, two-wheeler 8, auto 7, pedestrian 1.2
+Speed is **not fixed per type**. Each agent samples its own `targetSpeed` at spawn:
+
+```typescript
+function sampleSpeed(type: VehicleType, chaos: number): number {
+  const base: Record<VehicleType, number> = {
+    car: 8, 'two-wheeler': 7, auto: 6, pedestrian: 1.2,
+  }
+  // σ scales from 0.05 (chaos 0) to 0.6 (chaos 100)
+  const sigma = 0.05 + (chaos / 100) * 0.55
+  const factor = clamp(gaussianSample(1.0, sigma), 0.2, 2.5)
+  return base[type] * factor
+}
+```
+
+- chaos 0: all agents within ±5% of base speed — calm and predictable
+- chaos 50: speeds range from ~40% to ~200% of base — slow blockers AND rash drivers coexist
+- chaos 100: effectively any speed from 20% to 250% of base — pure unpredictability
+
+The type sets the *center* of the distribution. A car at chaos 100 might crawl at 1.6 m/s or charge at 20 m/s through the same intersection. This matches observed Indian traffic: every type of behavior is always present simultaneously.
+
+Gaussian sampling: `gaussianSample(mean, sigma)` uses Box-Muller transform.
+
+## Open questions (Stage 5)
+
+- Stage 5 only: all agents at sampled `targetSpeed` throughout (no stopping). Signals and following distance in Stage 6.
+- Crossing path: straight line from stop line to stop line. Arc paths deferred.
+- Tailgating / bumper drafting (blocking merge gaps): Stage 6 — following distance is also chaos-distributed.
