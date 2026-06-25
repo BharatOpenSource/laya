@@ -3,6 +3,7 @@ import { Toolbar } from './ui/Toolbar'
 import { BottomBar } from './ui/BottomBar'
 import { IntersectionSVG } from './editor/IntersectionSVG'
 import { SimCanvas } from './simulation/SimCanvas'
+import { Legend } from './simulation/Legend'
 import { useRoadGraphStore } from './store/roadGraph'
 import { readGraphFromHash, writeGraphToHash } from './store/url'
 
@@ -30,6 +31,7 @@ export default function App() {
         <div style={styles.divider} />
         <div style={styles.simPane}>
           <SimCanvas />
+          <Legend />
         </div>
       </div>
       <BottomBar />
