@@ -8,19 +8,15 @@ export function SimCanvas() {
   const workerRef = useRef<Worker | null>(null)
   const initializedRef = useRef(false)
 
-  // Use refs for values that the worker message handler needs fresh access to
   const graphRef = useRef(useRoadGraphStore.getState().graph)
   const graph = useRoadGraphStore(s => s.graph)
-  const { params, running, resetKey } = useSimStore()
+  const { params, running, signalsEnabled, resetKey } = useSimStore()
 
   useEffect(() => { graphRef.current = graph }, [graph])
 
   // Create worker once on mount
   useEffect(() => {
-    const worker = new Worker(
-      new URL('./worker.ts', import.meta.url),
-      { type: 'module' },
-    )
+    const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
     workerRef.current = worker
     initializedRef.current = false
 
@@ -30,17 +26,12 @@ export function SimCanvas() {
       if (!canvas) return
       const ctx = canvas.getContext('2d')
       if (!ctx) return
-      drawFrame(ctx, e.data.agents, graphRef.current, canvas.width, canvas.height)
+      drawFrame(ctx, e.data.agents, graphRef.current, canvas.width, canvas.height, e.data.signalData ?? null)
     }
 
-    return () => {
-      worker.terminate()
-      workerRef.current = null
-      initializedRef.current = false
-    }
+    return () => { worker.terminate(); workerRef.current = null; initializedRef.current = false }
   }, [])
 
-  // Handle run / pause
   useEffect(() => {
     const worker = workerRef.current
     if (!worker) return
@@ -56,29 +47,27 @@ export function SimCanvas() {
     }
   }, [running]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Graph edits while running
   useEffect(() => {
-    if (workerRef.current && initializedRef.current) {
+    if (workerRef.current && initializedRef.current)
       workerRef.current.postMessage({ type: 'graphUpdate', graph })
-    }
   }, [graph])
 
-  // Param changes
   useEffect(() => {
-    if (workerRef.current && initializedRef.current) {
+    if (workerRef.current && initializedRef.current)
       workerRef.current.postMessage({ type: 'setParams', params })
-    }
   }, [params])
 
-  // Reset trigger
+  useEffect(() => {
+    if (workerRef.current && initializedRef.current)
+      workerRef.current.postMessage({ type: 'setSignals', enabled: signalsEnabled })
+  }, [signalsEnabled])
+
   useEffect(() => {
     if (resetKey === 0) return
-    if (workerRef.current && initializedRef.current) {
+    if (workerRef.current && initializedRef.current)
       workerRef.current.postMessage({ type: 'reset' })
-    }
   }, [resetKey])
 
-  // Keep canvas pixel dimensions in sync with its CSS size
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -90,10 +79,5 @@ export function SimCanvas() {
     return () => observer.disconnect()
   }, [])
 
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{ display: 'block', width: '100%', height: '100%' }}
-    />
-  )
+  return <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />
 }

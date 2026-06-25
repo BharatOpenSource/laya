@@ -1,15 +1,15 @@
 import { create } from 'zustand'
 
 export interface ChaosParams {
-  speedVariance: number    // 0-100: how much speeds spread from the base
-  signalIgnore: number     // 0-100: how often signals are jumped
-  laneIndiscipline: number // 0-100: how loosely lane assignments are followed
-  gapAggression: number    // 0-100: how forcefully gaps are used when filtering/merging
-  yieldIgnore: number      // 0-100: how rarely vehicles yield at yield/uncontrolled arms
+  speedVariance: number
+  signalIgnore: number
+  laneIndiscipline: number
+  gapAggression: number
+  yieldIgnore: number
 }
 
-// All five params set to the same chaos value — the master preset
-function chaosPreset(chaos: number): ChaosParams {
+// Used only for the "Reset to chaos" button — does NOT auto-apply
+export function chaosPreset(chaos: number): ChaosParams {
   return {
     speedVariance: chaos,
     signalIgnore: chaos,
@@ -31,10 +31,13 @@ interface SimStore {
   chaos: number
   params: ChaosParams
   running: boolean
-  resetKey: number  // increment to signal SimCanvas to reset agents
-  setChaos: (v: number) => void
+  signalsEnabled: boolean
+  resetKey: number
+  setChaos: (v: number) => void           // only updates chaos reference, never touches params
+  resetParamsToChaos: () => void          // explicitly sync params to current chaos level
   setParam: (key: keyof ChaosParams, value: number) => void
   setRunning: (v: boolean) => void
+  toggleSignals: () => void
   triggerReset: () => void
 }
 
@@ -42,18 +45,20 @@ export const useSimStore = create<SimStore>((set) => ({
   chaos: 50,
   params: chaosPreset(50),
   running: false,
+  signalsEnabled: true,
   resetKey: 0,
 
-  setChaos: (chaos) =>
-    set({ chaos, params: chaosPreset(chaos) }),
+  setChaos: (chaos) => set({ chaos }),  // ← params untouched
+
+  resetParamsToChaos: () =>
+    set((state) => ({ params: chaosPreset(state.chaos) })),
 
   setParam: (key, value) =>
-    set((state) => ({
-      params: { ...state.params, [key]: value },
-    })),
+    set((state) => ({ params: { ...state.params, [key]: value } })),
 
   setRunning: (running) => set({ running }),
 
-  triggerReset: () =>
-    set((state) => ({ resetKey: state.resetKey + 1 })),
+  toggleSignals: () => set((state) => ({ signalsEnabled: !state.signalsEnabled })),
+
+  triggerReset: () => set((state) => ({ resetKey: state.resetKey + 1 })),
 }))
