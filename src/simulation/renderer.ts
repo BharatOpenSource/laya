@@ -17,28 +17,19 @@ interface SignalData {
   timeRemaining: number
 }
 
-// Signal indicators are placed in screen coordinates (never inside ctx.rotate).
-// Position: 14m along the arm from center (driver sees light before reaching stop line),
-// then 45px outside the far edge of the inbound lane group.
-// This guarantees the entire light box + label is well clear of the road surface.
-const SIGNAL_ALONG_M  = 14   // metres from center along the arm
-const SIGNAL_PERP_PX  = 50   // pixels outside the inbound road edge
+// Signal lights sit ON the arm centreline, 20m from center — clearly inside the arm's
+// road space with zero perpendicular offset. In a + junction, North light is on the
+// North road, East on the East road, etc. No corner ambiguity possible.
+const SIGNAL_ALONG_M = 20   // metres from center along the arm centreline
 
 type ArmType = RoadGraph['intersection']['arms'][0]
 
 function signalIndicatorPos(arm: ArmType, cx: number, cy: number): { sx: number; sy: number } {
-  const rad     = arm.angle * Math.PI / 180
-  const totalIn = arm.inboundLanes.reduce((s, l) => s + l.width, 0) * SCALE
-  const along   = SIGNAL_ALONG_M * SCALE
-
-  // Base point along the arm from center (in screen coords)
-  const baseSX = cx + along * Math.sin(rad)
-  const baseSY = cy - along * Math.cos(rad)
-
-  // Right-perpendicular in screen space = (cos θ, sin θ)  [inbound side in LHT]
+  const rad   = arm.angle * Math.PI / 180
+  const along = SIGNAL_ALONG_M * SCALE
   return {
-    sx: baseSX + Math.cos(rad) * (totalIn + SIGNAL_PERP_PX),
-    sy: baseSY + Math.sin(rad) * (totalIn + SIGNAL_PERP_PX),
+    sx: cx + along * Math.sin(rad),
+    sy: cy - along * Math.cos(rad),
   }
 }
 
@@ -53,51 +44,56 @@ function drawTrafficLight(
   const isAmber = signalData.stage === 'amber' && signalData.greenArmIds.includes(arm.id)
   const isRed   = !isGreen && !isAmber
 
-  const boxW = 16
-  const boxH = 44
-  const r    = 5     // circle radius
-  const gap  = 14    // between circle centres
+  // Rotate the light box to lie along the arm direction so it sits neatly on the road.
+  // For N/S arms the box is portrait (taller); for E/W it rotates to landscape.
+  const rad = arm.angle * Math.PI / 180
+
+  ctx.save()
+  ctx.translate(sx, sy)
+  ctx.rotate(rad)   // arm angle: 0=N, 90=E, 180=S, 270=W
+
+  const boxW = 14
+  const boxH = 42
+  const r    = 5
+  const gap  = 13
 
   // Housing
   ctx.fillStyle = '#0e0e18'
   ctx.strokeStyle = '#2a2a40'
   ctx.lineWidth = 1.5
   ctx.beginPath()
-  ctx.roundRect(sx - boxW / 2, sy - boxH / 2, boxW, boxH, 4)
+  ctx.roundRect(-boxW / 2, -boxH / 2, boxW, boxH, 4)
   ctx.fill()
   ctx.stroke()
 
-  // Red (top)
+  // Red (top = toward arm end = away from center)
   ctx.fillStyle = isRed ? '#ff3030' : '#250505'
   if (isRed) { ctx.shadowColor = '#ff3030'; ctx.shadowBlur = 12 }
-  ctx.beginPath(); ctx.arc(sx, sy - gap, r, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.arc(0, -gap, r, 0, Math.PI * 2); ctx.fill()
   ctx.shadowBlur = 0
 
   // Amber (middle)
   ctx.fillStyle = isAmber ? '#ffaa00' : '#1a1000'
   if (isAmber) { ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 12 }
-  ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill()
   ctx.shadowBlur = 0
 
-  // Green (bottom)
+  // Green (bottom = toward center / stop line)
   ctx.fillStyle = isGreen ? '#00e050' : '#001505'
   if (isGreen) { ctx.shadowColor = '#00e050'; ctx.shadowBlur = 14 }
-  ctx.beginPath(); ctx.arc(sx, sy + gap, r, 0, Math.PI * 2); ctx.fill()
+  ctx.beginPath(); ctx.arc(0, gap, r, 0, Math.PI * 2); ctx.fill()
   ctx.shadowBlur = 0
 
-  // Countdown timer (below box)
+  // Countdown — always drawn upright regardless of arm rotation
+  ctx.restore()  // ← back to screen coords before writing text
+
   const timerColor = isGreen ? '#00e050' : isAmber ? '#ffaa00' : '#ff3030'
   const secs = Math.ceil(signalData.timeRemaining)
   ctx.fillStyle = timerColor
   ctx.font = 'bold 9px monospace'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
-  ctx.fillText(String(secs), sx, sy + boxH / 2 + 3)
-
-  // Arm label (below countdown) — so you always know which side this light controls
-  ctx.fillStyle = '#555577'
-  ctx.font = '8px sans-serif'
-  ctx.fillText(arm.label, sx, sy + boxH / 2 + 15)
+  ctx.fillText(String(secs), sx, sy + boxH / 2 + 4)
   ctx.textBaseline = 'alphabetic'
 }
 
