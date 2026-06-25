@@ -49,14 +49,18 @@ let tickCount = 0
 let lastTime = 0
 
 // Signal state machine
-let signal: { phaseIndex: number; timer: number; isAmber: boolean } | null = null
+// Signal phases: green → amber → all-red clearance → next green
+type SignalStage = 'green' | 'amber' | 'allred'
+let signal: { phaseIndex: number; timer: number; stage: SignalStage } | null = null
 let signalsEnabled = true
 
 // ── Signal machine ─────────────────────────────────────────────────────────
 
+const ALL_RED_DURATION = 1.5  // seconds of all-red clearance between phases
+
 function initSignal() {
   if (!graph?.signalPlan?.phases.length) { signal = null; return }
-  signal = { phaseIndex: 0, timer: graph.signalPlan.phases[0].duration, isAmber: false }
+  signal = { phaseIndex: 0, timer: graph.signalPlan.phases[0].duration, stage: 'green' }
 }
 
 function updateSignal(dt: number) {
@@ -64,29 +68,41 @@ function updateSignal(dt: number) {
   const plan = graph.signalPlan
   signal.timer -= dt
   if (signal.timer > 0) return
-  if (!signal.isAmber) {
-    signal.isAmber = true
+  // Advance through: green → amber → allred → next green
+  if (signal.stage === 'green') {
+    signal.stage = 'amber'
     signal.timer = plan.amberDuration
+  } else if (signal.stage === 'amber') {
+    signal.stage = 'allred'
+    signal.timer = ALL_RED_DURATION
   } else {
-    signal.isAmber = false
+    // allred → next phase green
     signal.phaseIndex = (signal.phaseIndex + 1) % plan.phases.length
+    signal.stage = 'green'
     signal.timer = plan.phases[signal.phaseIndex].duration
   }
 }
 
 function isArmGreen(armId: string): boolean {
-  if (!signalsEnabled) return true               // signals disabled globally
-  if (!graph?.signalPlan || !signal) return true // uncontrolled intersection
-  if (signal.isAmber) return false
+  if (!signalsEnabled) return true
+  if (!graph?.signalPlan || !signal) return true
+  if (signal.stage !== 'green') return false
   return graph.signalPlan.phases[signal.phaseIndex].greenArmIds.includes(armId)
 }
 
-function currentSignalData(): { greenArmIds: string[]; isAmber: boolean; timeRemaining: number } | null {
+export type SignalStagePublic = 'green' | 'amber' | 'allred'
+
+function currentSignalData(): {
+  greenArmIds: string[]
+  stage: SignalStagePublic
+  timeRemaining: number
+} | null {
   if (!signalsEnabled || !graph?.signalPlan || !signal) return null
-  if (signal.isAmber) return { greenArmIds: [], isAmber: true, timeRemaining: signal.timer }
   return {
-    greenArmIds: graph.signalPlan.phases[signal.phaseIndex].greenArmIds,
-    isAmber: false,
+    greenArmIds: signal.stage === 'green'
+      ? graph.signalPlan.phases[signal.phaseIndex].greenArmIds
+      : [],
+    stage: signal.stage,
     timeRemaining: signal.timer,
   }
 }
@@ -227,20 +243,13 @@ function applyCompliance(agent: Agent, dt: number) {
 
   // ── Signal compliance ──
   if (arm.yieldRule === 'signal') {
-    if (!isArmGreen(arm.id)) {
-      // Red or amber: decide once whether to wait
-      if (!agent.waiting) {
-        if (Math.random() * 100 >= params.signalIgnore) {
-          // Respects signal — wait
-          agent.waiting = true
-        }
-        // else: ignores signal, carries on
+    const green = isArmGreen(arm.id)
+    if (!green) {
+      if (!agent.waiting && Math.random() * 100 >= params.signalIgnore) {
+        agent.waiting = true
       }
-      if (agent.waiting) {
-        agent.progress = Math.min(agent.progress, STOP_CLAMP)
-      }
+      if (agent.waiting) agent.progress = Math.min(agent.progress, STOP_CLAMP)
     } else {
-      // Signal is green — release
       agent.waiting = false
     }
     return
