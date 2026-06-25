@@ -47,10 +47,17 @@ export function SimCanvas() {
     }
   }, [running]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Structural changes (arms, lanes) — reset agents
   useEffect(() => {
     if (workerRef.current && initializedRef.current)
       workerRef.current.postMessage({ type: 'graphUpdate', graph })
-  }, [graph])
+  }, [graph.intersection]) // eslint-disable-line
+
+  // Signal plan changes only — keep agents moving
+  useEffect(() => {
+    if (workerRef.current && initializedRef.current)
+      workerRef.current.postMessage({ type: 'setSignalPlan', plan: graph.signalPlan })
+  }, [graph.signalPlan]) // eslint-disable-line
 
   useEffect(() => {
     if (workerRef.current && initializedRef.current)

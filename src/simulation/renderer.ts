@@ -14,6 +14,7 @@ interface AgentState {
 interface SignalData {
   greenArmIds: string[]
   isAmber: boolean
+  timeRemaining: number
 }
 
 export function drawFrame(
@@ -65,17 +66,30 @@ export function drawFrame(
     ctx.lineWidth = 2
     ctx.beginPath(); ctx.moveTo(0, stopY); ctx.lineTo(totalIn, stopY); ctx.stroke()
 
-    // Signal indicator — small dot just outside the right edge of the stop line
+    // Signal indicator — dot + countdown timer outside the stop line
     if (arm.yieldRule === 'signal' && signalData) {
       const isGreen = !signalData.isAmber && signalData.greenArmIds.includes(arm.id)
       const color = signalData.isAmber ? '#f59e0b' : isGreen ? '#22c55e' : '#ef4444'
+      const dotX = totalIn + 9
+      const dotY = stopY
+
+      // Glow dot
       ctx.fillStyle = color
       ctx.shadowColor = color
-      ctx.shadowBlur = 6
+      ctx.shadowBlur = 8
       ctx.beginPath()
-      ctx.arc(totalIn + 7, stopY, 4, 0, Math.PI * 2)
+      ctx.arc(dotX, dotY, 4, 0, Math.PI * 2)
       ctx.fill()
       ctx.shadowBlur = 0
+
+      // Countdown number below the dot
+      const secs = Math.ceil(signalData.timeRemaining)
+      ctx.fillStyle = color
+      ctx.font = 'bold 8px monospace'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      ctx.fillText(String(secs), dotX, dotY + 7)
+      ctx.textBaseline = 'alphabetic'
     }
 
     ctx.restore()

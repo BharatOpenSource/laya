@@ -81,12 +81,13 @@ function isArmGreen(armId: string): boolean {
   return graph.signalPlan.phases[signal.phaseIndex].greenArmIds.includes(armId)
 }
 
-function currentSignalData(): { greenArmIds: string[]; isAmber: boolean } | null {
+function currentSignalData(): { greenArmIds: string[]; isAmber: boolean; timeRemaining: number } | null {
   if (!signalsEnabled || !graph?.signalPlan || !signal) return null
-  if (signal.isAmber) return { greenArmIds: [], isAmber: true }
+  if (signal.isAmber) return { greenArmIds: [], isAmber: true, timeRemaining: signal.timer }
   return {
     greenArmIds: graph.signalPlan.phases[signal.phaseIndex].greenArmIds,
     isAmber: false,
+    timeRemaining: signal.timer,
   }
 }
 
@@ -391,6 +392,12 @@ self.onmessage = (e: MessageEvent) => {
       break
     case 'setParams':
       params = msg.params
+      break
+    case 'setSignalPlan':
+      if (graph) {
+        graph = { ...graph, signalPlan: msg.plan }
+        initSignal()  // restart signal cycle with new timings — agents keep moving
+      }
       break
     case 'setSignals':
       signalsEnabled = msg.enabled
