@@ -5,8 +5,8 @@ import { CenterBox } from './CenterBox'
 import { SelectionPanel, type Selection } from './SelectionPanel'
 import { SCALE } from './geometry'
 
-// Tighter default viewBox — arm is 60m, scale 5 = 300px; viewBox 500 leaves ~100px margin per side
-const DEFAULT_VB = { x: -250, y: -250, w: 500, h: 500 }
+// Default viewBox: arm is 60m at scale 5 = 300 SVG units; need ±340 to clear labels with margin
+const DEFAULT_VB = { x: -380, y: -380, w: 760, h: 760 }
 const ZOOM_FACTOR = 1.15
 const MIN_ZOOM_W = 100
 const MAX_ZOOM_W = 2400
