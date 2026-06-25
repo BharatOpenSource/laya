@@ -69,9 +69,16 @@ Separate project. pravaaha = civic process versioning. This = simulation and opt
 ### Costs
 Near zero until Phase 2 community backend. Static hosting on Cloudflare Pages is free. No server compute — simulation runs in user's browser.
 
+## Road graph data model — decisions locked 2026-06-25
+
+- **U-turn:** explicit opt-in per lane (`'u-turn'` in `allowedMovements`). Never implicit, never chaos-only.
+- **Lane width:** configurable per lane (not uniform per arm). Default 3.5m (IRC standard).
+- **Stop line:** explicit `stopLineOffset` per arm (metres from center). Default 5.0m.
+- **Spawn rate:** separate `spawnRate` field on `Arm` (vehicles per hour). Independent of arm length.
+
 ## Open Questions
 
-- [ ] **Project name** — candidates: Gati (गति, recommended — motion/speed, works across all Indian languages, names the motion not the container), Sandhi, Taal
+- [x] **Project name** — **Laya (लय)** locked 2026-06-25
 - [ ] **Automated diagnosis first or manual-observation first?**
 - [ ] **Licensing** — open source confirmed; specific license TBD
 - [ ] **Competitive landscape** — document VISSIM/Aimsun/Synchro and why this tool is different (Indian mixed traffic, accessible, open source). Not yet written.

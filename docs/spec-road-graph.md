@@ -57,12 +57,14 @@ interface Intersection {
 
 interface Arm {
   id: Id;
-  label: string;         // display name: "North", "MG Road", "Arm 3"
-  angle: number;         // degrees clockwise from north, [0, 360)
-  length: number;        // metres from center to far end of arm
-  inboundLanes: Lane[];  // approaching center; index 0 = leftmost facing intersection
-  outboundLanes: Lane[]; // leaving center; index 0 = leftmost facing intersection
-  yieldRule: YieldRule;  // applies to all inbound lanes unless overridden per lane
+  label: string;            // display name: "North", "MG Road", "Arm 3"
+  angle: number;            // degrees clockwise from north, [0, 360)
+  length: number;           // metres from center to far end of arm
+  stopLineOffset: number;   // metres from center to stop line; default 5.0
+  spawnRate: number;        // vehicles per hour entering on this arm
+  inboundLanes: Lane[];     // approaching center; index 0 = leftmost facing intersection
+  outboundLanes: Lane[];    // leaving center; index 0 = leftmost facing intersection
+  yieldRule: YieldRule;     // applies to all inbound lanes unless overridden per lane
 }
 
 type YieldRule = 'signal' | 'stop' | 'yield' | 'uncontrolled';
@@ -71,9 +73,10 @@ type YieldRule = 'signal' | 'stop' | 'yield' | 'uncontrolled';
 
 interface Lane {
   id: Id;
-  index: number;          // 0-based, left-to-right from driver perspective
-  width: number;          // metres; default 3.5 (Indian IRC standard)
-  // Inbound lanes only — which turn movements are permitted from this lane
+  index: number;            // 0-based, left-to-right from driver perspective
+  width: number;            // metres, configurable per lane; default 3.5 (IRC standard)
+  // Inbound lanes only — which turn movements are permitted from this lane.
+  // U-turn is opt-in: include 'u-turn' here to allow it on this lane.
   allowedMovements?: Movement[];
 }
 
@@ -131,7 +134,7 @@ Default lane config per arm: 2 inbound (straight + right, left + straight), 2 ou
 - Lane width: 2.5m minimum, 5.0m maximum
 - Arm length: 20m minimum, 200m maximum
 - An inbound lane must have at least one `allowedMovement`
-- U-turn only permitted if road geometry allows it (arm width sufficient — TBD threshold)
+- U-turn only present in `allowedMovements` if arm has sufficient total width (inbound + outbound ≥ 7m — one standard lane each way minimum)
 - Signal plan: phase durations must sum to ≤ 180s (reasonable cycle cap)
 
 ## What this model does NOT cover (Phase 1 exclusions)
@@ -142,9 +145,9 @@ Default lane config per arm: 2 inbound (straight + right, left + straight), 2 ou
 - Roundabout inner ring geometry → deferred
 - Grade separation (flyovers, underpasses) → out of scope
 
-## Open questions
+## Decisions locked 2026-06-25
 
-- [ ] U-turn: always permitted at chaos > 0, or requires explicit lane flag?
-- [ ] Lane width: uniform per arm, or configurable per lane? IRC standard suggests uniform — lean that way unless there's a case for per-lane.
-- [ ] Arm length: does it affect agent spawn rate, or is spawn rate a separate parameter?
-- [ ] How is the stop line position represented? Fixed at `distance = 0` from center, or explicit per arm?
+- **U-turn:** explicit opt-in per lane — include `'u-turn'` in `allowedMovements`. Never implicit.
+- **Lane width:** configurable per lane (not uniform per arm). Default 3.5m (IRC standard).
+- **Stop line:** explicit `stopLineOffset` per arm in metres from center. Default 5.0m.
+- **Spawn rate:** separate `spawnRate` field on `Arm` (vehicles per hour). Independent of arm length.
