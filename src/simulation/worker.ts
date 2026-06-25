@@ -273,12 +273,12 @@ function applyCompliance(agent: Agent, dt: number) {
 
 // ── Crossing-phase 2D collision avoidance ─────────────────────────────────
 
-// Pairwise proximity check for agents crossing the center box.
-// Works in world metres — computes each agent's current position on its
-// Bezier path, then slows both if they're within collision distance.
-// gapAggression shrinks the safe distance (higher aggression = tighter gaps).
+// Pairwise proximity check for crossing agents from DIFFERENT source arms only.
+// Same-arm pairs travel nearly-parallel paths (adjacent lanes) — they are not
+// conflicting trajectories and must not slow each other, or a jam cascades.
+// blendFactor kept tight (1.5×) so slowdown only happens when vehicles are
+// genuinely close, not across the whole intersection.
 function applyCrossingProximity() {
-  // Collect positions of all crossing agents in one pass
   type CrossingEntry = { agent: Agent; x: number; y: number }
   const crossing: CrossingEntry[] = []
 
@@ -291,27 +291,28 @@ function applyCrossingProximity() {
 
   if (crossing.length < 2) return
 
-  // Safe distance: sum of half-lengths + buffer; gapAggression shrinks the buffer
-  const buffer = 0.8 - (params.gapAggression / 100) * 0.6  // 0.8m → 0.2m at max aggression
-  const blendFactor = 3  // start slowing at 3× min distance
+  const buffer = 0.4 - (params.gapAggression / 100) * 0.3  // 0.4m → 0.1m at max aggression
+  const blendFactor = 1.5  // was 3 — only slow when actually close (not half the intersection away)
 
   for (let i = 0; i < crossing.length; i++) {
     for (let j = i + 1; j < crossing.length; j++) {
       const a = crossing[i]
       const b = crossing[j]
+
+      // Skip vehicles from the same arm — they travel parallel, not conflicting
+      if (a.agent.fromArmId === b.agent.fromArmId) continue
+
       const dx = b.x - a.x
       const dy = b.y - a.y
       const d = Math.sqrt(dx * dx + dy * dy)
       const minDist = vehicleHalfLen(a.agent.type) + vehicleHalfLen(b.agent.type) + buffer
 
-      if (d >= minDist * blendFactor) continue  // far enough — no adjustment needed
+      if (d >= minDist * blendFactor) continue
 
       if (d <= minDist) {
-        // Overlapping — stop both
         a.agent.speed = 0
         b.agent.speed = 0
       } else {
-        // Approaching — blend speed down toward zero proportionally
         const factor = (d - minDist) / (minDist * (blendFactor - 1))
         a.agent.speed = Math.min(a.agent.speed, a.agent.targetSpeed * factor)
         b.agent.speed = Math.min(b.agent.speed, b.agent.targetSpeed * factor)
