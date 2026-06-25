@@ -271,20 +271,63 @@ function applyCompliance(agent: Agent, dt: number) {
   }
 }
 
+// ── Crossing-phase 2D collision avoidance ─────────────────────────────────
+
+// Pairwise proximity check for agents crossing the center box.
+// Works in world metres — computes each agent's current position on its
+// Bezier path, then slows both if they're within collision distance.
+// gapAggression shrinks the safe distance (higher aggression = tighter gaps).
+function applyCrossingProximity() {
+  // Collect positions of all crossing agents in one pass
+  type CrossingEntry = { agent: Agent; x: number; y: number }
+  const crossing: CrossingEntry[] = []
+
+  for (const agent of agents.values()) {
+    if (agent.phase !== 'crossing') continue
+    const path = getCrossingPath(agent)
+    const pos = crossingPos(path, agent.progress)
+    crossing.push({ agent, x: pos.x, y: pos.y })
+  }
+
+  if (crossing.length < 2) return
+
+  // Safe distance: sum of half-lengths + buffer; gapAggression shrinks the buffer
+  const buffer = 0.8 - (params.gapAggression / 100) * 0.6  // 0.8m → 0.2m at max aggression
+  const blendFactor = 3  // start slowing at 3× min distance
+
+  for (let i = 0; i < crossing.length; i++) {
+    for (let j = i + 1; j < crossing.length; j++) {
+      const a = crossing[i]
+      const b = crossing[j]
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      const d = Math.sqrt(dx * dx + dy * dy)
+      const minDist = vehicleHalfLen(a.agent.type) + vehicleHalfLen(b.agent.type) + buffer
+
+      if (d >= minDist * blendFactor) continue  // far enough — no adjustment needed
+
+      if (d <= minDist) {
+        // Overlapping — stop both
+        a.agent.speed = 0
+        b.agent.speed = 0
+      } else {
+        // Approaching — blend speed down toward zero proportionally
+        const factor = (d - minDist) / (minDist * (blendFactor - 1))
+        a.agent.speed = Math.min(a.agent.speed, a.agent.targetSpeed * factor)
+        b.agent.speed = Math.min(b.agent.speed, b.agent.targetSpeed * factor)
+      }
+    }
+  }
+}
+
 // ── Tick ───────────────────────────────────────────────────────────────────
 
 function advanceAgents(dt: number) {
+  // Pass 1 — compliance + lane-following speeds for all agents
   for (const agent of agents.values()) {
-    // Signal + yield compliance (may set waiting / yieldTimer)
     applyCompliance(agent, dt)
-
-    // Speed from following distance model (returns 0 if waiting)
     agent.speed = effectiveSpeed(agent)
 
-    // Lane indiscipline — blocked agents may switch lanes to overtake.
-    // Guards: not waiting (not at red), actually moving (speed > 0, so not
-    // blocked by following distance at stop line), and not close to stop line
-    // (progress < 0.8 — prevents a lateral teleport right at the stop line).
     if (agent.phase === 'approaching' && !agent.waiting && agent.speed > 0 && agent.progress < 0.80) {
       if (agent.speed < agent.targetSpeed * 0.3) {
         agent.blockedTime += dt
@@ -295,9 +338,14 @@ function advanceAgents(dt: number) {
         agent.blockedTime = 0
       }
     }
+  }
 
+  // Pass 2 — 2D crossing proximity: may further reduce crossing agents' speeds
+  applyCrossingProximity()
+
+  // Pass 3 — advance positions
+  for (const agent of agents.values()) {
     if (agent.waiting) continue
-
     const len = phaseLength(agent)
     agent.progress += (agent.speed * dt) / len
 
