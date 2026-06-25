@@ -1,14 +1,36 @@
 import { PRESETS, type PresetKey } from '../graph/presets'
-import { useRoadGraphStore } from '../store/roadGraph'
+import { useRoadGraphStore, makeDefaultArm } from '../store/roadGraph'
 import { writeGraphToHash } from '../store/url'
 
+function findFreeAngle(existingAngles: number[]): number {
+  if (existingAngles.length === 0) return 0
+  const sorted = [...existingAngles].sort((a, b) => a - b)
+  let maxGap = 0
+  let bestAngle = 0
+  for (let i = 0; i < sorted.length; i++) {
+    const curr = sorted[i]
+    const next = sorted[(i + 1) % sorted.length]
+    const gap = next > curr ? next - curr : 360 - curr + next
+    if (gap > maxGap) { maxGap = gap; bestAngle = Math.round((curr + gap / 2) % 360) }
+  }
+  return bestAngle
+}
+
 export function Toolbar() {
-  const { graph, setGraph } = useRoadGraphStore()
+  const { graph, setGraph, addArm } = useRoadGraphStore()
+  const armCount = graph.intersection.arms.length
+  const canAddArm = armCount < 6
 
   function handlePreset(e: React.ChangeEvent<HTMLSelectElement>) {
     const key = e.target.value as PresetKey
     if (key in PRESETS) setGraph(PRESETS[key].factory())
     e.target.value = ''
+  }
+
+  function handleAddArm() {
+    const existingAngles = graph.intersection.arms.map(a => a.angle)
+    const angle = findFreeAngle(existingAngles)
+    addArm(makeDefaultArm(angle, `Arm ${armCount + 1}`))
   }
 
   function handleShare() {
@@ -27,7 +49,7 @@ export function Toolbar() {
             <option key={key} value={key}>{label}</option>
           ))}
         </select>
-        <button style={styles.btn} disabled title="Coming in Stage 4">+ Arm</button>
+        <button style={styles.btn} disabled={!canAddArm} onClick={handleAddArm}>+ Arm</button>
         <button style={styles.btn} disabled title="Coming in Stage 9">Signal</button>
       </div>
       <div style={styles.right}>
