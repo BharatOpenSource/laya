@@ -1,4 +1,4 @@
-# TraffiProject — Decisions & Open Questions
+# Laya — Decisions & Open Questions
 
 > Project-level decisions. Working conventions in `CLAUDE.md`.
 > 200-line limit — split into `ConvoQA-2.md` if exceeded.

@@ -100,6 +100,6 @@ After ANY correction from Srikar: update `docs/lessons.md` immediately. Review a
 
 ## Git
 
-Repo: https://github.com/BharatOpenSource/laya (to be created)
+Repo: https://github.com/BharatOpenSource/laya
 Branch convention: `feature/<short-description>`
 Never commit directly to `main`.
