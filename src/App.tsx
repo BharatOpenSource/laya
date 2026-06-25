@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Toolbar } from './ui/Toolbar'
 import { BottomBar } from './ui/BottomBar'
 import { IntersectionSVG } from './editor/IntersectionSVG'
+import { SimCanvas } from './simulation/SimCanvas'
 import { useRoadGraphStore } from './store/roadGraph'
 import { readGraphFromHash, writeGraphToHash } from './store/url'
 
@@ -28,7 +29,7 @@ export default function App() {
         </div>
         <div style={styles.divider} />
         <div style={styles.simPane}>
-          <span style={styles.paneLabel}>Simulation — Canvas (Stage 5)</span>
+          <SimCanvas />
         </div>
       </div>
       <BottomBar />
@@ -66,8 +67,7 @@ const styles = {
   simPane: {
     flex: 1,
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
     background: '#0a0a0f',
   },
   paneLabel: {

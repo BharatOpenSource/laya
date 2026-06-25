@@ -2,6 +2,7 @@ export type Id = string
 
 export type Movement = 'left' | 'straight' | 'right' | 'u-turn'
 export type YieldRule = 'signal' | 'stop' | 'yield' | 'uncontrolled'
+export type VehicleType = 'car' | 'two-wheeler' | 'auto' | 'pedestrian'
 
 export interface Lane {
   id: Id
