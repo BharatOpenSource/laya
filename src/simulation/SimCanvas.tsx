@@ -11,7 +11,7 @@ export function SimCanvas() {
   // Use refs for values that the worker message handler needs fresh access to
   const graphRef = useRef(useRoadGraphStore.getState().graph)
   const graph = useRoadGraphStore(s => s.graph)
-  const { params, running } = useSimStore()
+  const { params, running, resetKey } = useSimStore()
 
   useEffect(() => { graphRef.current = graph }, [graph])
 
@@ -69,6 +69,14 @@ export function SimCanvas() {
       workerRef.current.postMessage({ type: 'setParams', params })
     }
   }, [params])
+
+  // Reset trigger
+  useEffect(() => {
+    if (resetKey === 0) return
+    if (workerRef.current && initializedRef.current) {
+      workerRef.current.postMessage({ type: 'reset' })
+    }
+  }, [resetKey])
 
   // Keep canvas pixel dimensions in sync with its CSS size
   useEffect(() => {

@@ -6,7 +6,9 @@ import type { ChaosParams } from '../store/sim'
 import {
   inboundEntryPos, inboundStopPos,
   outboundStopPos, outboundExitPos,
-  lerp, dist, headingTo,
+  lerp,
+  buildCrossingPath, crossingPos, crossingHeading,
+  type CrossingPath,
 } from './geometry'
 import { sampleVehicleType, sampleSpeed } from './vehicleTypes'
 
@@ -44,43 +46,51 @@ function findArm(id: string): Arm {
   return graph!.intersection.arms.find(a => a.id === id)!
 }
 
+// Cached crossing paths — rebuilt when graph changes, keyed by agent id
+const crossingPaths = new Map<string, CrossingPath>()
+
+function getCrossingPath(agent: Agent): CrossingPath {
+  let path = crossingPaths.get(agent.id)
+  if (!path) {
+    path = buildCrossingPath(
+      findArm(agent.fromArmId), agent.fromLaneIndex,
+      findArm(agent.toArmId),   agent.toLaneIndex,
+    )
+    crossingPaths.set(agent.id, path)
+  }
+  return path
+}
+
 function phaseLength(agent: Agent): number {
   const from = findArm(agent.fromArmId)
-  const to = findArm(agent.toArmId)
+  const to   = findArm(agent.toArmId)
   switch (agent.phase) {
     case 'approaching': return Math.max(0.1, from.length - from.stopLineOffset)
-    case 'crossing': return Math.max(0.1, dist(
-      inboundStopPos(from, agent.fromLaneIndex),
-      outboundStopPos(to, agent.toLaneIndex),
-    ))
-    case 'exiting': return Math.max(0.1, to.length - to.stopLineOffset)
+    case 'crossing':    return Math.max(0.1, getCrossingPath(agent).arcLength)
+    case 'exiting':     return Math.max(0.1, to.length - to.stopLineOffset)
     default: return 0.1
   }
 }
 
 function agentState(agent: Agent): { id: string; type: VehicleType; x: number; y: number; heading: number } {
   const from = findArm(agent.fromArmId)
-  const to = findArm(agent.toArmId)
-  const t = agent.progress
+  const to   = findArm(agent.toArmId)
+  const t    = agent.progress
 
   switch (agent.phase) {
     case 'approaching': {
       const a = inboundEntryPos(from, agent.fromLaneIndex)
       const b = inboundStopPos(from, agent.fromLaneIndex)
-      const pos = lerp(a, b, t)
-      return { id: agent.id, type: agent.type, ...pos, heading: (from.angle + 180) % 360 }
+      return { id: agent.id, type: agent.type, ...lerp(a, b, t), heading: (from.angle + 180) % 360 }
     }
     case 'crossing': {
-      const a = inboundStopPos(from, agent.fromLaneIndex)
-      const b = outboundStopPos(to, agent.toLaneIndex)
-      const pos = lerp(a, b, t)
-      return { id: agent.id, type: agent.type, ...pos, heading: headingTo(a, b) }
+      const path = getCrossingPath(agent)
+      return { id: agent.id, type: agent.type, ...crossingPos(path, t), heading: crossingHeading(path, t) }
     }
     case 'exiting': {
       const a = outboundStopPos(to, agent.toLaneIndex)
       const b = outboundExitPos(to, agent.toLaneIndex)
-      const pos = lerp(a, b, t)
-      return { id: agent.id, type: agent.type, ...pos, heading: to.angle }
+      return { id: agent.id, type: agent.type, ...lerp(a, b, t), heading: to.angle }
     }
     default:
       return { id: agent.id, type: agent.type, x: 0, y: 0, heading: 0 }
@@ -179,7 +189,10 @@ function tick() {
   advanceAgents(dt)
 
   for (const [id, agent] of agents) {
-    if (agent.phase === 'done') agents.delete(id)
+    if (agent.phase === 'done') {
+      agents.delete(id)
+      crossingPaths.delete(id)
+    }
   }
 
   const states = [...agents.values()].map(agentState)
@@ -212,8 +225,8 @@ self.onmessage = (e: MessageEvent) => {
     case 'graphUpdate':
       graph = msg.graph
       connections = deriveConnections(graph!)
-      // Reset agents — routing tables changed
       agents.clear()
+      crossingPaths.clear()
       initSpawnTimers()
       break
 
@@ -235,6 +248,7 @@ self.onmessage = (e: MessageEvent) => {
 
     case 'reset':
       agents.clear()
+      crossingPaths.clear()
       initSpawnTimers()
       tickCount = 0
       break

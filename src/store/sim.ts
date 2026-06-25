@@ -31,17 +31,18 @@ interface SimStore {
   chaos: number
   params: ChaosParams
   running: boolean
-  // Master slider: sets all params to preset
+  resetKey: number  // increment to signal SimCanvas to reset agents
   setChaos: (v: number) => void
-  // Fine-tune: set one param independently
   setParam: (key: keyof ChaosParams, value: number) => void
   setRunning: (v: boolean) => void
+  triggerReset: () => void
 }
 
 export const useSimStore = create<SimStore>((set) => ({
   chaos: 50,
   params: chaosPreset(50),
   running: false,
+  resetKey: 0,
 
   setChaos: (chaos) =>
     set({ chaos, params: chaosPreset(chaos) }),
@@ -52,4 +53,7 @@ export const useSimStore = create<SimStore>((set) => ({
     })),
 
   setRunning: (running) => set({ running }),
+
+  triggerReset: () =>
+    set((state) => ({ resetKey: state.resetKey + 1 })),
 }))
