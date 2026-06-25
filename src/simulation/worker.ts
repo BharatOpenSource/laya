@@ -2,14 +2,15 @@
 import { nanoid } from 'nanoid'
 import { deriveConnections } from '../graph/connections'
 import type { Arm, Connection, RoadGraph, VehicleType } from '../types/graph'
-import type { ChaosParams } from '../store/sim'
+import type { ChaosParams, SpawnConfig } from '../store/sim'
+import { DEFAULT_SPAWN_CONFIG } from '../store/sim'
 import {
   inboundEntryPos, inboundStopPos,
   outboundStopPos, outboundExitPos,
   lerp, buildCrossingPath, crossingPos, crossingHeading,
   type CrossingPath,
 } from './geometry'
-import { sampleVehicleType, sampleSpeed, VEHICLE_CONFIGS } from './vehicleTypes'
+import { sampleSpeed, VEHICLE_CONFIGS } from './vehicleTypes'
 
 // ── Agent ──────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ let connections: Connection[] = []
 let agents = new Map<string, Agent>()
 let spawnTimers = new Map<string, number>()
 const crossingPaths = new Map<string, CrossingPath>()
+let spawnConfig: SpawnConfig = DEFAULT_SPAWN_CONFIG
 let running = false
 let initialized = false
 let tickCount = 0
@@ -279,8 +281,11 @@ function advanceAgents(dt: number) {
     // Speed from following distance model (returns 0 if waiting)
     agent.speed = effectiveSpeed(agent)
 
-    // Lane indiscipline — blocked agents may switch lanes to overtake
-    if (agent.phase === 'approaching' && !agent.waiting) {
+    // Lane indiscipline — blocked agents may switch lanes to overtake.
+    // Guards: not waiting (not at red), actually moving (speed > 0, so not
+    // blocked by following distance at stop line), and not close to stop line
+    // (progress < 0.8 — prevents a lateral teleport right at the stop line).
+    if (agent.phase === 'approaching' && !agent.waiting && agent.speed > 0 && agent.progress < 0.80) {
       if (agent.speed < agent.targetSpeed * 0.3) {
         agent.blockedTime += dt
         if (agent.blockedTime > 1.5 && Math.random() * 100 < params.laneIndiscipline) {
@@ -339,8 +344,20 @@ function initSpawnTimers() {
 }
 
 function spawnInterval(arm: Arm): number {
-  const rate = arm.spawnRate / arm.inboundLanes.length
+  const rate = (arm.spawnRate / arm.inboundLanes.length) * spawnConfig.globalMultiplier
   return rate > 0 ? 3600 / rate : Infinity
+}
+
+function sampleType(): VehicleType {
+  const weights = spawnConfig.typeWeights
+  const total = Object.values(weights).reduce((s, w) => s + w, 0)
+  if (total <= 0) return 'car'
+  let r = Math.random() * total
+  for (const [type, w] of Object.entries(weights) as [VehicleType, number][]) {
+    r -= w
+    if (r <= 0) return type
+  }
+  return 'car'
 }
 
 function trySpawn(arm: Arm, laneIndex: number) {
@@ -352,7 +369,7 @@ function trySpawn(arm: Arm, laneIndex: number) {
   const conn = laneConns[Math.floor(Math.random() * laneConns.length)]
   const toArm = graph.intersection.arms.find(a => a.id === conn.toArmId)
   if (!toArm?.outboundLanes.length) return
-  const type = sampleVehicleType()
+  const type = sampleType()
   const spd = sampleSpeed(type, params.speedVariance)
   const id = nanoid()
   agents.set(id, {
@@ -401,6 +418,9 @@ self.onmessage = (e: MessageEvent) => {
       break
     case 'setParams':
       params = msg.params
+      break
+    case 'setSpawnConfig':
+      spawnConfig = msg.config
       break
     case 'setSignalPlan':
       if (graph) {
