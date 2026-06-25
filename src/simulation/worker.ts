@@ -50,6 +50,7 @@ let lastTime = 0
 
 // Signal state machine
 let signal: { phaseIndex: number; timer: number; isAmber: boolean } | null = null
+let signalsEnabled = true
 
 // ── Signal machine ─────────────────────────────────────────────────────────
 
@@ -74,9 +75,19 @@ function updateSignal(dt: number) {
 }
 
 function isArmGreen(armId: string): boolean {
-  if (!graph?.signalPlan || !signal) return true  // uncontrolled
+  if (!signalsEnabled) return true               // signals disabled globally
+  if (!graph?.signalPlan || !signal) return true // uncontrolled intersection
   if (signal.isAmber) return false
   return graph.signalPlan.phases[signal.phaseIndex].greenArmIds.includes(armId)
+}
+
+function currentSignalData(): { greenArmIds: string[]; isAmber: boolean } | null {
+  if (!signalsEnabled || !graph?.signalPlan || !signal) return null
+  if (signal.isAmber) return { greenArmIds: [], isAmber: true }
+  return {
+    greenArmIds: graph.signalPlan.phases[signal.phaseIndex].greenArmIds,
+    isAmber: false,
+  }
 }
 
 // ── Geometry helpers ───────────────────────────────────────────────────────
@@ -298,7 +309,12 @@ function tick() {
     if (agent.phase === 'done') { agents.delete(id); crossingPaths.delete(id) }
   }
 
-  self.postMessage({ type: 'frame', tick: tickCount++, agents: [...agents.values()].map(agentState) })
+  self.postMessage({
+    type: 'frame',
+    tick: tickCount++,
+    agents: [...agents.values()].map(agentState),
+    signalData: currentSignalData(),
+  })
   if (running) setTimeout(tick, 0)
 }
 
@@ -375,6 +391,15 @@ self.onmessage = (e: MessageEvent) => {
       break
     case 'setParams':
       params = msg.params
+      break
+    case 'setSignals':
+      signalsEnabled = msg.enabled
+      // Release any waiting agents if signals just turned off
+      if (!signalsEnabled) {
+        for (const agent of agents.values()) {
+          if (agent.waiting) agent.waiting = false
+        }
+      }
       break
     case 'resume':
       if (initialized && !running) { running = true; lastTime = Date.now(); tick() }
