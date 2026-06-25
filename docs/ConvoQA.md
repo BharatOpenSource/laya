@@ -76,6 +76,22 @@ Near zero until Phase 2 community backend. Static hosting on Cloudflare Pages is
 - **Stop line:** explicit `stopLineOffset` per arm (metres from center). Default 5.0m.
 - **Spawn rate:** separate `spawnRate` field on `Arm` (vehicles per hour). Independent of arm length.
 
+## Chaos fine-tune parameters — locked 2026-06-25
+
+The chaos slider is a master preset that sets all behavior axes simultaneously. Under it, five independent sliders allow fine-tuning:
+
+| Param | What it controls |
+|-------|-----------------|
+| `speedVariance` | How much agent speeds spread from the type base |
+| `signalIgnore` | How often signals are jumped |
+| `laneIndiscipline` | How loosely lane assignments are followed |
+| `gapAggression` | How forcefully gaps are used (filtering, merging) |
+| `yieldIgnore` | How rarely vehicles yield at yield/uncontrolled arms |
+
+When chaos = N, all five params = N. Individual params can be changed independently after. A "●" indicator appears on the Fine-tune button when params diverge from the chaos preset.
+
+Use case: set chaos=50 (realistic India), then pull signalIgnore to 80 (no cop at this intersection) or gapAggression to 90 (peak hour filtering) without changing overall chaos.
+
 ## Agent behavior model — locked 2026-06-25
 
 **Speed and behavior are chaos-distributed, not fixed per vehicle type.**

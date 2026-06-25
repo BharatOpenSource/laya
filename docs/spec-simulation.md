@@ -25,9 +25,9 @@ The worker owns all agent state. The main thread only receives positions to rend
 
 ```typescript
 type WorkerMsg =
-  | { type: 'init';        graph: RoadGraph; chaos: number }
+  | { type: 'init';        graph: RoadGraph; params: ChaosParams }
   | { type: 'graphUpdate'; graph: RoadGraph }
-  | { type: 'setChaos';    chaos: number }
+  | { type: 'setParams';   params: ChaosParams } // sent on chaos slider or any fine-tune change
   | { type: 'resume' }
   | { type: 'pause' }
   | { type: 'reset' }
@@ -198,7 +198,8 @@ Default spawn mix: 50% two-wheeler, 30% car, 15% auto, 5% pedestrian.
 Speed is **not fixed per type**. Each agent samples its own `targetSpeed` at spawn:
 
 ```typescript
-function sampleSpeed(type: VehicleType, chaos: number): number {
+function sampleSpeed(type: VehicleType, params: ChaosParams): number {
+  const chaos = params.speedVariance
   const base: Record<VehicleType, number> = {
     car: 8, 'two-wheeler': 7, auto: 6, pedestrian: 1.2,
   }
