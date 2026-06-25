@@ -10,7 +10,7 @@ import {
   buildCrossingPath, crossingPos, crossingHeading,
   type CrossingPath,
 } from './geometry'
-import { sampleVehicleType, sampleSpeed } from './vehicleTypes'
+import { sampleVehicleType, sampleSpeed, VEHICLE_CONFIGS } from './vehicleTypes'
 
 // ── Agent ──────────────────────────────────────────────────────────────────
 
@@ -24,8 +24,9 @@ interface Agent {
   fromLaneIndex: number
   toArmId: string
   toLaneIndex: number
-  progress: number    // 0–1 within current phase
-  speed: number       // m/s
+  progress: number      // 0–1 within current phase
+  speed: number         // m/s, current (adjusted for following distance)
+  targetSpeed: number   // m/s, free-flow speed sampled at spawn
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -131,8 +132,10 @@ function trySpawn(arm: Arm, laneIndex: number) {
   if (!toArm || toArm.outboundLanes.length === 0) return
 
   const type = sampleVehicleType()
-  agents.set(nanoid(), {
-    id: nanoid(),
+  const spd = sampleSpeed(type, params.speedVariance)
+  const id = nanoid()
+  agents.set(id, {
+    id,
     type,
     phase: 'approaching',
     fromArmId: arm.id,
@@ -140,7 +143,8 @@ function trySpawn(arm: Arm, laneIndex: number) {
     toArmId: conn.toArmId,
     toLaneIndex: conn.toLaneIndex,
     progress: 0,
-    speed: sampleSpeed(type, params.speedVariance),
+    speed: spd,
+    targetSpeed: spd,
   })
 }
 
@@ -162,10 +166,60 @@ function updateSpawnTimers(dt: number) {
   }
 }
 
+// ── Following distance ─────────────────────────────────────────────────────
+
+function vehicleHalfLength(type: VehicleType): number {
+  return VEHICLE_CONFIGS[type].length / 2
+}
+
+// Lane key: identifies a stream of agents that should follow each other.
+// Approaching: same arm + same lane index.
+// Exiting: same destination arm + same outbound lane index.
+function laneKey(agent: Agent): string | null {
+  if (agent.phase === 'approaching') return `in:${agent.fromArmId}:${agent.fromLaneIndex}`
+  if (agent.phase === 'exiting')     return `out:${agent.toArmId}:${agent.toLaneIndex}`
+  return null // crossing phase: no lane-following (2D proximity not yet implemented)
+}
+
+// Compute the effective speed for an agent, capped by the vehicle ahead.
+// Uses a simplified IDM: slow toward the vehicle ahead, maintain a safe gap.
+function effectiveSpeed(agent: Agent): number {
+  const key = laneKey(agent)
+  if (!key) return agent.targetSpeed
+
+  const len = phaseLength(agent)
+  const minGap = vehicleHalfLength(agent.type) + 0.8 // metres behind front of agent
+
+  let closestGap = Infinity
+  let aheadSpeed = Infinity
+
+  for (const other of agents.values()) {
+    if (other.id === agent.id) continue
+    if (laneKey(other) !== key) continue
+    if (other.progress <= agent.progress) continue // behind us
+
+    const separationM = (other.progress - agent.progress) * len
+    const gap = separationM - vehicleHalfLength(other.type) - minGap
+    if (gap < closestGap) {
+      closestGap = gap
+      aheadSpeed = other.speed
+    }
+  }
+
+  if (closestGap <= 0) return 0 // fully blocked
+  if (closestGap < 6) {
+    // Proportionally blend toward the ahead vehicle's speed
+    const blend = Math.max(0, closestGap / 6)
+    return Math.min(agent.targetSpeed, aheadSpeed * (1 - blend) + agent.targetSpeed * blend)
+  }
+  return agent.targetSpeed
+}
+
 // ── Tick ───────────────────────────────────────────────────────────────────
 
 function advanceAgents(dt: number) {
   for (const agent of agents.values()) {
+    agent.speed = effectiveSpeed(agent)
     const len = phaseLength(agent)
     agent.progress += (agent.speed * dt) / len
 
