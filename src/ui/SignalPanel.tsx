@@ -39,12 +39,12 @@ export function SignalPanel({ onClose }: Props) {
         <div style={styles.body}>
           {plan.phases.map((phase, i) => (
             <div key={phase.id} style={styles.row}>
-              <span style={styles.phaseLabel}>
-                Phase {i + 1}
+              <div style={styles.phaseLabel}>
+                <span style={styles.phaseName}>Phase {i + 1}</span>
                 <span style={styles.arms}>
-                  {phase.greenArmIds.map(id => armLabel(id)).join(', ')}
+                  🟢 {phase.greenArmIds.map(id => armLabel(id)).join(', ')}
                 </span>
-              </span>
+              </div>
               <div style={styles.inputGroup}>
                 <input
                   type="number"
@@ -119,11 +119,13 @@ const styles = {
     gap: 8,
   },
   phaseLabel: {
-    color: '#888',
-    fontSize: 11,
     display: 'flex',
     flexDirection: 'column' as const,
     gap: 2,
+  },
+  phaseName: {
+    color: '#888',
+    fontSize: 11,
   },
   arms: {
     color: '#555',

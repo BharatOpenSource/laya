@@ -37,16 +37,19 @@ function makeArm(label: string, angle: number): Arm {
   }
 }
 
-// Two-phase signal plan: N-S green, then E-W green
-function twoPhaseSignal(arms: Arm[], group1Indices: number[], group2Indices: number[]): SignalPlan {
+// 4-phase signal: each arm gets its own green phase in sequence.
+// Realistic Indian pattern: one direction at a time with amber transition.
+function fourPhaseSignal(arms: Arm[], durationSec = 25): SignalPlan {
   return {
-    phases: [
-      { id: nanoid(), duration: 30, greenArmIds: group1Indices.map(i => arms[i].id) },
-      { id: nanoid(), duration: 30, greenArmIds: group2Indices.map(i => arms[i].id) },
-    ],
+    phases: arms.map(arm => ({
+      id: nanoid(),
+      duration: durationSec,
+      greenArmIds: [arm.id],
+    })),
     amberDuration: 3,
   }
 }
+
 
 export function preset4Way(): RoadGraph {
   const arms = [
@@ -58,12 +61,11 @@ export function preset4Way(): RoadGraph {
   return {
     version: 1,
     intersection: { id: nanoid(), arms },
-    signalPlan: twoPhaseSignal(arms, [0, 2], [1, 3]), // N+S, then E+W
+    signalPlan: fourPhaseSignal(arms), // one arm at a time: N → E → S → W → N
   }
 }
 
 export function presetTJunction(): RoadGraph {
-  // North, East, South — no west arm
   const arms = [
     makeArm('North', 0),
     makeArm('East', 90),
@@ -72,7 +74,7 @@ export function presetTJunction(): RoadGraph {
   return {
     version: 1,
     intersection: { id: nanoid(), arms },
-    signalPlan: twoPhaseSignal(arms, [0, 2], [1]),
+    signalPlan: fourPhaseSignal(arms),
   }
 }
 
@@ -85,7 +87,7 @@ export function presetYJunction(): RoadGraph {
   return {
     version: 1,
     intersection: { id: nanoid(), arms },
-    signalPlan: twoPhaseSignal(arms, [0], [1, 2]),
+    signalPlan: fourPhaseSignal(arms),
   }
 }
 
