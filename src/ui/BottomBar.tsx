@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSimStore, PARAM_LABELS, type ChaosParams } from '../store/sim'
+import { TrafficPanel } from './TrafficPanel'
 
 export function BottomBar() {
   const {
@@ -49,6 +50,7 @@ export function BottomBar() {
           >
             {expanded ? '▲' : '▼'} Fine-tune
           </button>
+          <TrafficPanel />
         </div>
         <div style={styles.controls}>
           <button

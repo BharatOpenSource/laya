@@ -10,7 +10,7 @@ export function SimCanvas() {
 
   const graphRef = useRef(useRoadGraphStore.getState().graph)
   const graph = useRoadGraphStore(s => s.graph)
-  const { params, running, signalsEnabled, resetKey } = useSimStore()
+  const { params, spawnConfig, running, signalsEnabled, resetKey } = useSimStore()
 
   useEffect(() => { graphRef.current = graph }, [graph])
 
@@ -68,6 +68,11 @@ export function SimCanvas() {
     if (workerRef.current && initializedRef.current)
       workerRef.current.postMessage({ type: 'setSignals', enabled: signalsEnabled })
   }, [signalsEnabled])
+
+  useEffect(() => {
+    if (workerRef.current && initializedRef.current)
+      workerRef.current.postMessage({ type: 'setSpawnConfig', config: spawnConfig })
+  }, [spawnConfig])
 
   useEffect(() => {
     if (resetKey === 0) return
