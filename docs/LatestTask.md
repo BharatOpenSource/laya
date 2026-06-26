@@ -25,5 +25,14 @@
 - [x] SimCanvas bug fixed: spawnConfig now sent in init message (was lost if set before clicking Run)
 - [x] Playwright E2E: 11/11 passing (pedestrian spawn + pixel verification test added)
 
+**Stage 9 — complete (intersection gridlock fix):**
+- [x] Entry gate: hold at stop line if crossing zone has ≥2 conflicting crossing agents
+- [x] Stall recovery: `crossingStallTime` counter → minimum speed floor after 3s at speed=0
+- [x] Outbound lane preview: hold at stop line if destination outbound lane is blocked
+- [x] Restore `blendFactor` from 1.5 → 2.5
+- [x] Crossing occupancy cap: max `arms.length` vehicles in crossing simultaneously
+- [x] Fix `|| true` compliance bug in `applyCompliance` (uncontrolled arms always yield)
+- [x] 11/11 Playwright tests passing
+
 **Pending (future stages):**
 - [ ] Diagnosis layer (Stage 10): throughput, queue length, bottleneck highlighting

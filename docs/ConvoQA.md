@@ -115,6 +115,53 @@ Indian traffic has every kind of behavior simultaneously — slow where it shoul
 
 These are not limits — they are the center of the distribution. At chaos 100, a car might do 20 m/s (72 km/h) through an intersection.
 
+## Intersection Gridlock — Root Cause Analysis (2026-06-25)
+
+Observed in Y-junction: vehicles jam and overlap at center box, deadlock permanently.
+
+### Root causes (in order of impact)
+
+**1. No intersection entry gate** (`worker.ts:355`)
+Approaching→crossing transition is unconditional — no check if crossing zone has space.
+Vehicles keep entering regardless of how congested the box already is.
+Fix: count conflicting crossing agents before entry; hold at stop line if ≥2.
+
+**2. Crossing phase has no following-distance model** (`worker.ts:178`)
+`laneKey()` returns null for crossing phase → `effectiveSpeed()` returns full targetSpeed.
+Crossing agents rely entirely on `applyCrossingProximity()` — no anticipatory braking.
+
+**3. `applyCrossingProximity` is reactive, not preventive** (`worker.ts:281`)
+Fires only after vehicles are already in the box. Sets speed=0 but has no repulsion.
+`blendFactor=1.5` too tight — vehicles already overlapping before slowdown begins.
+Symmetric braking (both agents stop) creates circular deadlock with no recovery.
+
+**4. No stall recovery**
+Once speed=0 in crossing, vehicles stay at 0 forever if blocker never moves.
+No stall timer, no minimum speed floor, no escape hatch.
+
+**5. Outbound lane not visible to crossing agents**
+A crossing vehicle targeting outbound lane X doesn't occupy it until it physically enters
+`exiting` phase. Multiple crossing vehicles target the same outbound lane simultaneously.
+
+**6. Y-junction geometry amplifies all issues**
+120° arms → short crossing paths, tiny center zone, all paths converge at one point.
+3 arms × 2 lanes = 6 simultaneous crossing agents → proximity model collapses.
+
+**7. `|| true` compliance bug** (`worker.ts:261`)
+`const isYieldArm = arm.yieldRule !== 'uncontrolled' || true` — forces ALL arms including
+uncontrolled to apply yield pause. Incorrect behavior; minor contributor.
+
+### Planned fixes (Stage 9)
+
+| Fix | Location | Impact |
+|-----|----------|--------|
+| Entry gate: hold if ≥2 conflicting crossing agents | `advanceAgents`, approaching→crossing | High |
+| Stall recovery: min speed floor after 3s at speed=0 | agent struct + `advanceAgents` | High |
+| Outbound preview: hold if dest lane blocked | approaching→crossing transition | Medium |
+| Restore blendFactor 1.5 → 2.5 | `applyCrossingProximity` | Medium |
+| Crossing occupancy cap (max arms.length) | `advanceAgents` | Medium |
+| Fix `|| true` compliance bug | `applyCompliance` | Low |
+
 ## Open Questions
 
 - [x] **Project name** — **Laya (लय)** locked 2026-06-25

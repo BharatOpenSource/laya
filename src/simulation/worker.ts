@@ -31,6 +31,8 @@ interface Agent {
   waiting: boolean      // held at stop line (red signal or yield pause)
   yieldTimer: number    // seconds remaining in yield pause
   blockedTime: number   // seconds spent below 30% targetSpeed (overtake trigger)
+  // Stage 9 fields
+  crossingStallTime: number  // seconds spent at speed=0 while crossing
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -258,7 +260,7 @@ function applyCompliance(agent: Agent, dt: number) {
   }
 
   // ── Yield / stop / uncontrolled compliance ──
-  const isYieldArm = arm.yieldRule !== 'uncontrolled' || true // all non-signal arms get yield check
+  const isYieldArm = arm.yieldRule !== 'uncontrolled'
   if (isYieldArm && !agent.waiting) {
     if (Math.random() * 100 >= params.yieldIgnore) {
       const base = arm.yieldRule === 'stop' ? 3.0
@@ -292,7 +294,7 @@ function applyCrossingProximity() {
   if (crossing.length < 2) return
 
   const buffer = 0.4 - (params.gapAggression / 100) * 0.3  // 0.4m → 0.1m at max aggression
-  const blendFactor = 1.5  // was 3 — only slow when actually close (not half the intersection away)
+  const blendFactor = 2.5
 
   for (let i = 0; i < crossing.length; i++) {
     for (let j = i + 1; j < crossing.length; j++) {
@@ -321,6 +323,39 @@ function applyCrossingProximity() {
   }
 }
 
+// ── Intersection entry gate ────────────────────────────────────────────────
+
+function crossingCount(): number {
+  let n = 0
+  for (const a of agents.values()) { if (a.phase === 'crossing') n++ }
+  return n
+}
+
+function countConflictingCrossing(agent: Agent): number {
+  let n = 0
+  for (const other of agents.values()) {
+    if (other.phase !== 'crossing' || other.fromArmId === agent.fromArmId) continue
+    n++
+  }
+  return n
+}
+
+function isOutboundLaneBlocked(agent: Agent): boolean {
+  for (const other of agents.values()) {
+    if (other.id === agent.id) continue
+    if (other.phase !== 'crossing' && other.phase !== 'exiting') continue
+    if (other.toArmId === agent.toArmId && other.toLaneIndex === agent.toLaneIndex) return true
+  }
+  return false
+}
+
+function entryGateBlocked(agent: Agent): boolean {
+  if (!graph) return false
+  return countConflictingCrossing(agent) >= 2
+    || crossingCount() >= graph.intersection.arms.length
+    || isOutboundLaneBlocked(agent)
+}
+
 // ── Tick ───────────────────────────────────────────────────────────────────
 
 function advanceAgents(dt: number) {
@@ -344,13 +379,28 @@ function advanceAgents(dt: number) {
   // Pass 2 — 2D crossing proximity: may further reduce crossing agents' speeds
   applyCrossingProximity()
 
-  // Pass 3 — advance positions
+  // Pass 3 — stall recovery: crossing agents stuck at speed=0 for >3s get a minimum speed floor
+  for (const agent of agents.values()) {
+    if (agent.phase !== 'crossing') { agent.crossingStallTime = 0; continue }
+    if (agent.speed === 0) {
+      agent.crossingStallTime += dt
+      if (agent.crossingStallTime > 3.0) agent.speed = agent.targetSpeed * 0.2
+    } else {
+      agent.crossingStallTime = 0
+    }
+  }
+
+  // Pass 4 — advance positions
   for (const agent of agents.values()) {
     if (agent.waiting) continue
     const len = phaseLength(agent)
     agent.progress += (agent.speed * dt) / len
 
     while (agent.progress >= 1 && agent.phase !== 'done') {
+      if (agent.phase === 'approaching' && entryGateBlocked(agent)) {
+        agent.progress = STOP_CLAMP
+        break
+      }
       agent.progress -= 1
       if (agent.phase === 'approaching') { agent.phase = 'crossing'; agent.waiting = false }
       else if (agent.phase === 'crossing') {
@@ -425,7 +475,7 @@ function trySpawnPedestrian(arm: Arm) {
     fromArmId: arm.id, fromLaneIndex: 0,
     toArmId: arm.id, toLaneIndex: 0,
     progress: 0, speed: spd, targetSpeed: spd,
-    waiting: false, yieldTimer: 0, blockedTime: 0,
+    waiting: false, yieldTimer: 0, blockedTime: 0, crossingStallTime: 0,
   })
   crossingPaths.set(id, buildPedestrianCrossingPath(arm))
 }
@@ -453,7 +503,7 @@ function trySpawn(arm: Arm, laneIndex: number) {
     fromArmId: arm.id, fromLaneIndex: laneIndex,
     toArmId: conn.toArmId, toLaneIndex: conn.toLaneIndex,
     progress: 0, speed: spd, targetSpeed: spd,
-    waiting: false, yieldTimer: 0, blockedTime: 0,
+    waiting: false, yieldTimer: 0, blockedTime: 0, crossingStallTime: 0,
   })
 }
 
