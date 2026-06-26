@@ -70,8 +70,8 @@ A web-based graphical tool for building, simulating, diagnosing, and solving Ind
 **Active development. Stages 1–8 complete.**
 
 - Scaffold, SVG editor, simulation engine, agent behaviour, chaos slider (5-axis fine-tune), 4-phase signal model, traffic density controls, pedestrian crossing paths — all implemented and passing Playwright E2E suite (11/11).
-- Stage 9 next: intersection gridlock fix (entry gate, stall recovery, occupancy cap, compliance bug).
-- Stage 10 planned: diagnosis layer (throughput, queue length, bottleneck highlighting).
+- Stage 9 complete: intersection gridlock fix — entry gate, stall recovery, outbound preview, occupancy cap, blendFactor restored, compliance bug fixed. Branch `feature/stage-9-gridlock-fix` pushed, pending merge.
+- Stage 10 next: diagnosis layer (throughput, queue length, bottleneck highlighting).
 
 Do not invent specifics for anything not yet implemented. If a mechanic is spec'd but not built, say so.
 
