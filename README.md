@@ -1,32 +1,49 @@
-# React + TypeScript + Vite
+# Laya (लय)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+*Sanskrit: लय — rhythm, tempo, cadence.*
 
-Currently, two official plugins are available:
+> Part of [Bharat Open Source](https://github.com/BharatOpenSource)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+A web-based tool for building, simulating, and diagnosing Indian road intersections.
 
-## React Compiler
+## The problem
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Indian road intersections are complex, chaotic, and under-planned. Western traffic simulators assume lane discipline, homogeneous vehicles, and rule compliance — none of which reflect Indian reality. Urban planners and bureaucrats have no accessible tool to model or communicate intersection problems before roads are built or rebuilt.
 
-## Expanding the Oxlint configuration
+If you can see where and why an intersection breaks down, the solution becomes obvious.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## What it does
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+**Build → Simulate → Diagnose → Adjust**
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- **Intersection editor** — drag-and-drop road segments, lane count and direction assignment, presets for common layouts
+- **Agent-based simulation** — individual vehicles with position, speed, and behavioral rules; emergent jams and chaos from individual decisions, not aggregate formulas
+- **Mixed traffic** — cars, two-wheelers, autos, pedestrians — modeled honestly, not as deviations from a Western norm
+- **Chaos slider (0–100)** — 0 is perfect compliance, 50 is realistic India (signal jumping, gap filtering, wrong-side entry), 100 is entropy
+- **Signal timing controls** — manual phase durations per arm
+- **Lane mathematics** — per-lane direction assignment (left / straight / right), visual toggle UI
+
+## Current status
+
+**Active development. Stages 1–9 complete.**
+
+| Stage | What | Status |
+|-------|------|--------|
+| 1 | Scaffold, editor, SVG rendering | Done |
+| 2 | Data layer — road network model | Done |
+| 3 | SVG intersection editor | Done |
+| 4 | Simulation engine (Web Worker) | Done |
+| 5 | Agent behaviour and spawning | Done |
+| 6 | Chaos slider | Done |
+| 7 | 4-phase signal model | Done |
+| 8 | Density controls + pedestrian crossings | Done |
+| 9 | Intersection gridlock fix | Done |
+| 10 | Diagnosis layer — throughput, queue, bottleneck | Next |
+
+## Tech stack
+
+TypeScript + React + Vite. SVG for the editor. Canvas 2D for simulation rendering. Web Worker for the simulation engine (off main thread). Zustand for state. Cloudflare Pages for hosting.
+
+## Part of
+
+[Bharat Open Source](https://github.com/BharatOpenSource) — infrastructure built by India, for India.
